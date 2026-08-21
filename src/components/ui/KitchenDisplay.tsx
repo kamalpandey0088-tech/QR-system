@@ -62,7 +62,7 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
   // Fetch menu items for stock
   const fetchMenuItems = async () => {
     try {
-      const res = await fetch(`/api/menu/items?tenantId=${tenantId}`);
+      const res = await fetch(`/api/menu/items?tenant_id=${tenantId}&include_all=true`);
       if (res.ok) {
         const data = await res.json();
         setMenuItems(data.success ? (data.data || []) : []);
