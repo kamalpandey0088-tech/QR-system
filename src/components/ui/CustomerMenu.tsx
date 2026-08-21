@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { ShoppingBag, Plus, Minus, ChevronRight, QrCode, Flame, Star } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
@@ -319,6 +320,68 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
 
 // ─── Main Customer Menu ───────────────────────────────────────────────────────
 export default function CustomerMenu({ tenantName, initialCategories, initialItems }: any) {
+  const router = useRouter();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  const handleCheckout = async (method: 'CASH' | 'ONLINE') => {
+    if (isCheckingOut) return;
+    setIsCheckingOut(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethod: method }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Failed to place order');
+        setIsCheckingOut(false);
+        return;
+      }
+
+      if (method === 'CASH') {
+        router.push(`/order/${data.data.id}/invoice`);
+      } else {
+        const rzpRes = await fetch('/api/payments/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: data.data.id })
+        });
+        const rzpData = await rzpRes.json();
+        
+        if (!rzpData.success) {
+          alert('Online payments are currently disabled. Please use Cash.');
+          router.push(`/order/${data.data.id}/invoice`);
+          return;
+        }
+
+        const options = {
+          key: rzpData.data.keyId,
+          amount: rzpData.data.amount,
+          currency: rzpData.data.currency,
+          name: 'Your Order',
+          description: 'Payment for your meal',
+          order_id: rzpData.data.razorpayOrderId,
+          handler: function () {
+             router.push(`/order/${data.data.id}/invoice`);
+          },
+          prefill: { name: "Customer" },
+          theme: { color: "#4f46e5" }
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function () {
+          alert('Payment Failed. Please try again or use cash.');
+          setIsCheckingOut(false);
+        });
+        rzp.open();
+      }
+    } catch (e) {
+      alert('Network error. Please try again.');
+      setIsCheckingOut(false);
+    }
+  };
+
   const [activeCategory, setActiveCategory] = useState(initialCategories[0]?.id);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const cart = useCartStore();
@@ -515,14 +578,11 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => setIsCartOpen(false)}
-                  className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95">
+                <button onClick={() => handleCheckout('CASH')} disabled={isCheckingOut} className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50">
                   <span className="font-black text-[15px]">Pay at Counter</span>
                   <span className="text-[11px] opacity-60 font-bold uppercase tracking-widest">Cash / Card</span>
                 </button>
-                <button onClick={() => setIsCartOpen(false)}
-                  className="relative flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] text-white overflow-hidden active:scale-95 transition-all shadow-[0_15px_40px_rgba(74,222,128,0.35)]"
-                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+                <button onClick={() => handleCheckout('ONLINE')} disabled={isCheckingOut} className="relative flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] text-white overflow-hidden active:scale-95 transition-all shadow-[0_15px_40px_rgba(74,222,128,0.35)] disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                   <QrCode className="w-7 h-7" />
                   <span className="font-black text-[15px]">Scan & Pay</span>
                   <span className="text-[11px] opacity-90 font-bold uppercase tracking-widest">Via UPI · Free</span>
