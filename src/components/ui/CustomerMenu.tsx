@@ -204,14 +204,13 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
       ref={cardRef}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
-      style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
+      style={{ rotateX, rotateY, transformStyle: 'preserve-3d', boxShadow: '0 30px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.07)' }}
       variants={{
         hidden: { opacity: 0, y: 40, scale: 0.9 },
         visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 80, damping: 14 } },
       }}
       whileTap={{ scale: 0.97 }}
       className="relative rounded-[2.5rem] overflow-hidden cursor-pointer select-none"
-      style={{ boxShadow: `0 30px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.07)` }}
     >
       {/* Dynamic glow that follows cursor */}
       <motion.div
@@ -300,8 +299,8 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
             background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
             color: '#0f172a',
             boxShadow: '0 10px 30px rgba(255,255,255,0.15), 0 0 0 1px rgba(255,255,255,0.1)',
+            transform: 'translateZ(40px)'
           }}
-          style2={{ transform: 'translateZ(40px)' }}
         >
           {/* Shimmer */}
           <motion.div
