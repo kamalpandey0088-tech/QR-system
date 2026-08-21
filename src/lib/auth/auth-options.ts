@@ -9,7 +9,7 @@
 
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { verify } from 'argon2';
+import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { loginSchema } from '@/lib/validations/auth';
 
@@ -56,7 +56,7 @@ export const authOptions = {
         }
 
         // Verify password using Argon2id (GPU-resistant)
-        const isValidPassword = await verify(user.passwordHash, password);
+        const isValidPassword = await bcrypt.compare(password, user.passwordHash);
         if (!isValidPassword) {
           return null;
         }
