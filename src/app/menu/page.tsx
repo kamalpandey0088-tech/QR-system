@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
 import CustomerMenu from '@/components/ui/CustomerMenu';
+import SessionInitializer from './SessionInitializer';
 import { createCustomerSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 
@@ -52,21 +52,17 @@ export default async function MenuPage({
     imageUrl: item.imageUrl || undefined,
   }));
 
-  // 2. Create session and set cookie
+  // 2. Create session and set cookie using client component
   const { sessionToken } = await createCustomerSession(tenantId, table);
-  cookies().set('customer_session', sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 86400,
-  });
 
   return (
-    <CustomerMenu
-      tenantName={tenant.name}
-      initialCategories={categories.map(c => ({ id: c.id, name: c.name }))}
-      initialItems={items}
-    />
+    <>
+      <SessionInitializer token={sessionToken} />
+      <CustomerMenu
+        tenantName={tenant.name}
+        initialCategories={categories.map(c => ({ id: c.id, name: c.name }))}
+        initialItems={items}
+      />
+    </>
   );
 }
