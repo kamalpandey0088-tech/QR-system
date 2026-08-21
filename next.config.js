@@ -2,7 +2,7 @@
 const nextConfig = {
   poweredByHeader: false,
 
-  serverExternalPackages: ['argon2', 'node-thermal-printer'],
+  experimental: { serverComponentsExternalPackages: ['argon2', 'node-thermal-printer'] },
 
   async headers() {
     return [
