@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #2563eb;
+  --color-primary-light: #3b82f6;
+  --color-primary-dark: #1d4ed8;
+  --color-secondary: #64748b;
+  --color-secondary-light: #94a3b8;
+  --color-secondary-dark: #475569;
+  --color-accent: #f59e0b;
+  --color-accent-light: #fbbf24;
+  --color-accent-dark: #d97706;
+  --color-surface: #f8fafc;
+  --color-background: #ffffff;
+  --font-brand: 'Inter', system-ui, sans-serif;
+  --radius-brand: 0.5rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-brand);
+    background-color: var(--color-background);
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-brand font-medium
+           hover:bg-primary-dark transition-colors duration-200
+           focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white px-4 py-2 rounded-brand font-medium
+           hover:bg-secondary-dark transition-colors duration-200
+           focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary px-4 py-2 rounded-brand font-medium
+           hover:bg-primary hover:text-white transition-colors duration-200
+           focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .card {
+    @apply bg-white rounded-brand shadow-sm border border-gray-100 p-4;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-brand
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+           disabled:bg-gray-100 disabled:cursor-not-allowed
+           placeholder:text-gray-400;
+  }
+}

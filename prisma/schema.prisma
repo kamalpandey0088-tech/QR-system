@@ -1,0 +1,343 @@
+// ============================================================
+// Prisma Schema - Multi-Tenant POS & KDS SaaS
+// ============================================================
+// SECURITY NOTES:
+// 1. All primary keys are UUIDv4 to prevent IDOR attacks
+// 2. Every tenant-scoped table has a tenant_id foreign key
+// 3. PostgreSQL RLS policies provide a second barrier (see rls-policies.sql)
+// 4. Decimal type used for all monetary values (never float)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  CAFE_OWNER
+  CHEF
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKED_OUT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+// ── Tenant (Cafe) ────────────────────────────────────────────
+
+model Tenant {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String   @unique
+  domain      String?  @unique
+  logoUrl     String?  @map("logo_url")
+  upiId       String?  @map("upi_id")
+  themeConfig Json     @default("{}") @map("theme_config")
+  currency    String   @default("INR")
+  taxRate     Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  categories         Category[]
+  menuItems          MenuItem[]
+  modifiers          Modifier[]
+  customerSessions   CustomerSession[]
+  carts              Cart[]
+  orders             Order[]
+  orderItems         OrderItem[]
+  paymentWebhookLogs PaymentWebhookLog[]
+  refundLogs         RefundLog[]
+
+  @@map("tenants")
+}
+
+// ── User (Admin/Staff) ───────────────────────────────────────
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String?  @map("tenant_id") @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(CHEF)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+// ── Menu: Categories ─────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItems MenuItem[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("categories")
+}
+
+// ── Menu: Items ──────────────────────────────────────────────
+
+model MenuItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?  @map("image_url")
+  isAvailable Boolean  @default(true) @map("is_available")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category  Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  modifiers MenuItemModifier[]
+  cartItems CartItem[]
+
+  @@index([tenantId, categoryId])
+  @@index([tenantId, isAvailable])
+  @@map("menu_items")
+}
+
+// ── Menu: Modifiers (e.g., Extra Cheese) ─────────────────────
+
+model Modifier {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItems MenuItemModifier[]
+  cartItemModifiers CartItemModifier[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("modifiers")
+}
+
+// ── Junction: MenuItem <-> Modifier ──────────────────────────
+
+model MenuItemModifier {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  menuItemId String @map("menu_item_id") @db.Uuid
+  modifierId String @map("modifier_id") @db.Uuid
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  modifier Modifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, modifierId])
+  @@map("menu_item_modifiers")
+}
+
+// ── Customer Session (QR-scan based) ─────────────────────────
+
+model CustomerSession {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  tableNumber  String?  @map("table_number")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cart   Cart?
+  orders Order[]
+
+  @@index([tenantId])
+  @@index([sessionToken])
+  @@map("customer_sessions")
+}
+
+// ── Cart ─────────────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  sessionId String     @unique @map("session_id") @db.Uuid
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session CustomerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  items   CartItem[]
+
+  @@index([tenantId])
+  @@map("carts")
+}
+
+// ── Cart Items ───────────────────────────────────────────────
+
+model CartItem {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId     String   @map("cart_id") @db.Uuid
+  menuItemId String   @map("menu_item_id") @db.Uuid
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  cart      Cart               @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem           @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  modifiers CartItemModifier[]
+
+  @@map("cart_items")
+}
+
+// ── Cart Item Modifiers ──────────────────────────────────────
+
+model CartItemModifier {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartItemId String  @map("cart_item_id") @db.Uuid
+  modifierId String  @map("modifier_id") @db.Uuid
+  price      Decimal @db.Decimal(10, 2)
+
+  cartItem CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  modifier Modifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+
+  @@unique([cartItemId, modifierId])
+  @@map("cart_item_modifiers")
+}
+
+// ── Orders ───────────────────────────────────────────────────
+
+model Order {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String      @map("tenant_id") @db.Uuid
+  sessionId            String?     @map("session_id") @db.Uuid
+  orderNumber          Int         @default(autoincrement()) @map("order_number")
+  status               OrderStatus @default(PENDING)
+  subtotal             Decimal     @db.Decimal(10, 2)
+  tax                  Decimal     @db.Decimal(10, 2)
+  total                Decimal     @db.Decimal(10, 2)
+  tableNumber          String?     @map("table_number")
+  paymentMethod        String?     @map("payment_method")
+  paymentTransactionId String?     @unique @map("payment_transaction_id")
+  idempotencyKey       String?     @unique @map("idempotency_key")
+  paidAt               DateTime?   @map("paid_at")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session CustomerSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  items   OrderItem[]
+  refunds RefundLog[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([paymentTransactionId])
+  @@index([idempotencyKey])
+  @@map("orders")
+}
+
+// ── Order Items (snapshots of menu items at time of order) ───
+
+model OrderItem {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId    String  @map("order_id") @db.Uuid
+  menuItemId String? @map("menu_item_id") @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  itemName   String  @map("item_name")
+  quantity   Int     @default(1)
+  unitPrice  Decimal @map("unit_price") @db.Decimal(10, 2)
+  notes      String?
+
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  modifiers OrderItemModifier[]
+
+  @@index([tenantId, orderId])
+  @@map("order_items")
+}
+
+// ── Order Item Modifiers (snapshots) ─────────────────────────
+
+model OrderItemModifier {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderItemId  String  @map("order_item_id") @db.Uuid
+  modifierName String  @map("modifier_name")
+  price        Decimal @db.Decimal(10, 2)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@map("order_item_modifiers")
+}
+
+// ── Payment Webhook Log (idempotency) ────────────────────────
+
+model PaymentWebhookLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String?  @map("tenant_id") @db.Uuid
+  provider      String
+  eventType     String   @map("event_type")
+  transactionId String   @map("transaction_id")
+  payload       Json
+  signature     String
+  verified      Boolean  @default(false)
+  processed     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, transactionId, eventType])
+  @@index([transactionId])
+  @@map("payment_webhook_logs")
+}
+
+// ── Refund Log ───────────────────────────────────────────────
+
+model RefundLog {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId             String   @map("order_id") @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  amount              Decimal  @db.Decimal(10, 2)
+  reason              String
+  refundTransactionId String?  @map("refund_transaction_id")
+  status              String   @default("INITIATED")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([orderId])
+  @@map("refund_logs")
+}

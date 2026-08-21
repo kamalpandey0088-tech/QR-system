@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Lumina Cafe - Ultra 3D Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --brand-font: 'Inter', -apple-system, sans-serif; }
+        body { font-family: var(--brand-font); background-color: #0F172A; color: white; overflow-x: hidden; perspective: 1200px; margin: 0; padding-bottom: 120px; }
+        
+        /* Ultra Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        /* 3D Scene Background */
+        .scene-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: radial-gradient(circle at 50% 0%, #1E293B 0%, #0F172A 70%); }
+        
+        /* Pure CSS 3D Floating Object */
+        .crystal-container { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); perspective: 800px; z-index: -1; opacity: 0.6; }
+        .crystal { width: 150px; height: 150px; transform-style: preserve-3d; animation: rotate3d 15s infinite linear; }
+        .crystal-face { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(99,102,241,0.2)); border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(10px); }
+        .crystal-face:nth-child(1) { transform: translateZ(75px); }
+        .crystal-face:nth-child(2) { transform: rotateY(90deg) translateZ(75px); }
+        .crystal-face:nth-child(3) { transform: rotateY(180deg) translateZ(75px); }
+        .crystal-face:nth-child(4) { transform: rotateY(-90deg) translateZ(75px); }
+        .crystal-face:nth-child(5) { transform: rotateX(90deg) translateZ(75px); }
+        .crystal-face:nth-child(6) { transform: rotateX(-90deg) translateZ(75px); }
+        @keyframes rotate3d { 0% { transform: rotateX(0) rotateY(0) rotateZ(0); } 100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(180deg); } }
+
+        /* 3D Interactive Dish Cards */
+        .dish-card {
+            transform-style: preserve-3d;
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s ease;
+            transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1);
+            will-change: transform;
+        }
+        .dish-card.active-touch { transform: perspective(1000px) scale3d(0.95, 0.95, 0.95); transition: transform 0.1s; }
+        
+        /* Multi-layered Depth Elements */
+        .depth-1 { transform: translateZ(20px); }
+        .depth-2 { transform: translateZ(40px); }
+        .depth-3 { transform: translateZ(60px); }
+        
+        .dish-img-placeholder {
+            background: linear-gradient(135deg, #FF7E5F, #FEB47B);
+            animation: pulse-glow 3s infinite alternate;
+            border-radius: 50%;
+            box-shadow: 0 20px 40px rgba(255, 126, 95, 0.4);
+        }
+
+        @keyframes pulse-glow { 0% { box-shadow: 0 10px 20px rgba(255, 126, 95, 0.3); transform: translateZ(40px) scale(1); } 100% { box-shadow: 0 30px 60px rgba(255, 126, 95, 0.6); transform: translateZ(40px) scale(1.05); } }
+
+        /* Smooth Entrances */
+        .animate-enter { animation: slide-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(40px); }
+        @keyframes slide-up { to { opacity: 1; transform: translateY(0); } }
+
+        /* UI Overlays */
+        .bottom-sheet { transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); transform: translateY(100%); }
+        .bottom-sheet.open { transform: translateY(0); }
+        .floating-cart { transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1); transform: translateY(150px) scale(0.8); opacity: 0; }
+        .floating-cart.visible { transform: translateY(0) scale(1); opacity: 1; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+
+    <!-- 3D CSS Background Elements -->
+    <div class="scene-bg"></div>
+    <div class="crystal-container animate-enter" style="animation-delay: 0.1s;">
+        <div class="crystal">
+            <div class="crystal-face"></div><div class="crystal-face"></div><div class="crystal-face"></div>
+            <div class="crystal-face"></div><div class="crystal-face"></div><div class="crystal-face"></div>
+        </div>
+    </div>
+
+    <!-- Premium Header -->
+    <header class="sticky top-0 z-40 glass-panel px-6 pt-16 pb-4 animate-enter border-x-0 border-t-0" style="animation-delay: 0.2s;">
+        <h1 class="text-[32px] font-black tracking-tight text-white drop-shadow-md">Lumina Cafe</h1>
+        <p class="text-[14px] text-gray-300 font-medium mt-1">Immersive 3D Dining Experience</p>
+        
+        <div class="flex gap-3 mt-6 overflow-x-auto pb-2 hide-scrollbar -mx-6 px-6">
+            <button class="whitespace-nowrap px-6 py-3 rounded-full text-[14px] font-bold bg-white text-gray-900 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 transition-transform">Artisan Burgers</button>
+            <button class="whitespace-nowrap px-6 py-3 rounded-full text-[14px] font-bold glass-panel text-white hover:bg-white/10 transition-colors">Signature Coffee</button>
+        </div>
+    </header>
+
+    <!-- Menu Items -->
+    <main class="p-6 mx-auto max-w-md grid grid-cols-1 gap-8 mt-4">
+        <!-- 3D Dish Card 1 -->
+        <div class="dish-card glass-panel flex flex-col rounded-[2.5rem] p-6 animate-enter" style="animation-delay: 0.4s;">
+            <!-- 3D Holographic Image Placeholder -->
+            <div class="w-full h-48 mb-6 rounded-[2rem] bg-gray-900/40 flex items-center justify-center relative overflow-hidden border border-white/5">
+                <!-- Floating 3D Object -->
+                <div class="dish-img-placeholder w-28 h-28 absolute z-10"></div>
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_70%)]"></div>
+            </div>
+            
+            <div class="depth-1 flex justify-between items-start mb-3">
+                <div class="pr-4">
+                    <h3 class="text-[22px] font-black text-white leading-tight drop-shadow-sm">Truffle Burger</h3>
+                    <p class="text-[14px] text-gray-400 mt-2 leading-relaxed">Wagyu beef patty, wild mushrooms, aged swiss cheese.</p>
+                </div>
+                <div class="glass-panel px-3 py-1.5 rounded-xl shrink-0">
+                    <span class="font-black text-[16px] text-white">₹450</span>
+                </div>
+            </div>
+            
+            <button onclick="addToCart(450)" class="depth-2 mt-4 w-full flex items-center justify-center gap-2 bg-white text-gray-900 py-4 rounded-[1.5rem] font-bold text-[16px] active:scale-95 transition-all shadow-[0_10px_20px_rgba(255,255,255,0.2)] hover:shadow-[0_15px_30px_rgba(255,255,255,0.4)]">
+                <i data-lucide="plus" class="w-5 h-5"></i> Add to Order
+            </button>
+        </div>
+
+        <!-- 3D Dish Card 2 -->
+        <div class="dish-card glass-panel flex flex-col rounded-[2.5rem] p-6 animate-enter" style="animation-delay: 0.5s;">
+            <div class="w-full h-48 mb-6 rounded-[2rem] bg-gray-900/40 flex items-center justify-center relative overflow-hidden border border-white/5">
+                <div class="dish-img-placeholder w-28 h-28 absolute z-10" style="background: linear-gradient(135deg, #6EE7B7, #3B82F6); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);"></div>
+            </div>
+            
+            <div class="depth-1 flex justify-between items-start mb-3">
+                <div class="pr-4">
+                    <h3 class="text-[22px] font-black text-white leading-tight drop-shadow-sm">Nitro Cold Brew</h3>
+                    <p class="text-[14px] text-gray-400 mt-2 leading-relaxed">24-hour steeped single-origin Ethiopian beans.</p>
+                </div>
+                <div class="glass-panel px-3 py-1.5 rounded-xl shrink-0">
+                    <span class="font-black text-[16px] text-white">₹220</span>
+                </div>
+            </div>
+            
+            <button onclick="addToCart(220)" class="depth-2 mt-4 w-full flex items-center justify-center gap-2 bg-white text-gray-900 py-4 rounded-[1.5rem] font-bold text-[16px] active:scale-95 transition-all shadow-[0_10px_20px_rgba(255,255,255,0.2)]">
+                <i data-lucide="plus" class="w-5 h-5"></i> Add to Order
+            </button>
+        </div>
+    </main>
+
+    <!-- Floating Cart Button -->
+    <div id="floating-cart" class="floating-cart fixed bottom-10 inset-x-0 flex justify-center px-6 z-30">
+        <button onclick="openCart()" class="flex items-center justify-between w-full max-w-sm bg-white text-gray-900 p-4 rounded-[2rem] shadow-[0_30px_60px_rgba(255,255,255,0.3)] active:scale-95 transition-transform">
+            <div class="flex items-center gap-4">
+                <div class="bg-gray-100 p-3 rounded-full relative">
+                    <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                    <span id="cart-count" class="absolute -top-2 -right-2 bg-rose-500 text-white text-[12px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-md">0</span>
+                </div>
+                <span class="font-black text-[18px]">View Order</span>
+            </div>
+            <div class="flex items-center gap-2 bg-gray-100 pl-5 pr-4 py-2.5 rounded-full">
+                <span id="cart-total" class="font-black text-[18px]">₹0</span>
+                <i data-lucide="chevron-right" class="w-5 h-5 opacity-70"></i>
+            </div>
+        </button>
+    </div>
+
+    <!-- Bottom Sheet Overlay -->
+    <div id="overlay" onclick="closeCart()" class="overlay fixed inset-0 bg-black/80 backdrop-blur-xl z-40"></div>
+
+    <!-- Cart Bottom Sheet -->
+    <div id="bottom-sheet" class="bottom-sheet fixed inset-x-0 bottom-0 glass-panel border-x-0 border-b-0 rounded-t-[3rem] p-8 pb-12 z-50 max-h-[90vh] overflow-y-auto flex flex-col">
+        <div class="w-16 h-1.5 bg-white/20 rounded-full mx-auto mb-8"></div>
+        <h2 class="text-[32px] font-black mb-8 text-white">Your Order</h2>
+        
+        <div class="space-y-3 pt-6 border-t border-white/10 mb-8">
+            <div class="flex justify-between text-[32px] font-black text-white pt-4">
+                <span>Total</span>
+                <span id="sheet-total">₹0</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="completeOrder()" class="flex flex-col items-center justify-center gap-2 p-5 rounded-[2rem] glass-panel hover:bg-white hover:text-gray-900 transition-all active:scale-95">
+                <span class="font-black text-[16px]">Pay at Cashier</span>
+                <span class="text-[12px] opacity-70 font-bold uppercase tracking-widest">Cash / Card</span>
+            </button>
+            <button onclick="completeOrder()" class="relative flex flex-col items-center justify-center gap-2 p-5 rounded-[2rem] bg-gradient-to-br from-green-400 to-green-600 text-white shadow-[0_15px_30px_rgba(74,222,128,0.4)] hover:scale-[1.02] transition-all active:scale-95 overflow-hidden">
+                <i data-lucide="qr-code" class="w-7 h-7"></i>
+                <span class="font-black text-[16px]">Scan & Pay</span>
+                <span class="text-[12px] opacity-90 font-bold uppercase tracking-widest">Via UPI</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        
+        // Advanced 3D Gyroscope & Mouse Physics Engine
+        const cards = document.querySelectorAll('.dish-card');
+        
+        // Mouse Tilt
+        cards.forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const xPct = (x / rect.width - 0.5) * 30; // 30deg extreme tilt
+                const yPct = (y / rect.height - 0.5) * -30;
+                card.style.transform = `perspective(1000px) rotateX(${yPct}deg) rotateY(${xPct}deg) scale3d(1.02, 1.02, 1.02)`;
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+            });
+            // Touch interactions
+            card.addEventListener('touchstart', () => card.classList.add('active-touch'));
+            card.addEventListener('touchend', () => card.classList.remove('active-touch'));
+        });
+
+        // Device Gyroscope Tilt for Mobile Awesomeness
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', (e) => {
+                const tiltX = Math.max(-20, Math.min(20, e.beta - 45)); // forward/back
+                const tiltY = Math.max(-20, Math.min(20, e.gamma)); // left/right
+                cards.forEach(card => {
+                    if(!card.classList.contains('active-touch')) {
+                        card.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+                    }
+                });
+            });
+        }
+
+        let total = 0;
+        let items = 0;
+
+        function addToCart(price) {
+            total += price;
+            items += 1;
+            document.getElementById('cart-count').innerText = items;
+            document.getElementById('cart-total').innerText = '₹' + total;
+            document.getElementById('sheet-total').innerText = '₹' + total;
+            document.getElementById('floating-cart').classList.add('visible');
+            
+            // Haptic feedback if available
+            if (window.navigator && window.navigator.vibrate) { window.navigator.vibrate(50); }
+        }
+
+        function openCart() {
+            document.getElementById('floating-cart').classList.remove('visible');
+            document.getElementById('overlay').classList.add('open');
+            document.getElementById('bottom-sheet').classList.add('open');
+            if (window.navigator && window.navigator.vibrate) { window.navigator.vibrate(50); }
+        }
+
+        function closeCart() {
+            if(items > 0) document.getElementById('floating-cart').classList.add('visible');
+            document.getElementById('overlay').classList.remove('open');
+            document.getElementById('bottom-sheet').classList.remove('open');
+        }
+
+        function completeOrder() {
+            alert('Award-winning design interaction complete!');
+            total = 0; items = 0;
+            closeCart();
+            document.getElementById('floating-cart').classList.remove('visible');
+        }
+    </script>
+</body>
+</html>

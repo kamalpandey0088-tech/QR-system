@@ -1,0 +1,34 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createCustomerSession, createSessionCookieHeader } from '@/lib/auth/session';
+import { handleApiError, createCorrelationId } from '@/lib/errors';
+
+const createSessionSchema = z.object({
+  tenantId: z.string().uuid('Invalid tenant ID'),
+  tableNumber: z.string().max(20).trim().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { tenantId, tableNumber } = createSessionSchema.parse(body);
+    
+    const { sessionToken, sessionId } = await createCustomerSession(tenantId, tableNumber);
+    
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: { sessionId, tableNumber: tableNumber ?? null },
+        correlationId: createCorrelationId(),
+      },
+      { status: 201 }
+    );
+    
+    response.headers.set('Set-Cookie', createSessionCookieHeader(sessionToken));
+    
+    return response;
+  } catch (error) {
+    const { status, body } = handleApiError(error);
+    return NextResponse.json(body, { status });
+  }
+}
