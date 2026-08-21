@@ -4,7 +4,10 @@ import { motion } from 'framer-motion';
 import { QrCode, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+import { useState } from 'react';
+
 export default function DemoQRPage() {
+  const [isNavigating, setIsNavigating] = useState(false);
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center p-6 relative font-brand">
       <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors font-bold">
@@ -28,9 +31,16 @@ export default function DemoQRPage() {
           <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Table 4</h2>
           <p className="text-gray-500 font-medium leading-relaxed mb-8">Scan this QR code with your phone camera to open the immersive interactive menu.</p>
           
-          <Link href="/menu" className="w-full">
-            <button className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-[16px] active:scale-95 transition-all shadow-lg hover:shadow-xl">
-              Open Menu Directly
+          <Link href="/menu" className="w-full" onClick={() => setIsNavigating(true)}>
+            <button className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-[16px] active:scale-95 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+              {isNavigating ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Opening Menu...
+                </>
+              ) : (
+                'Open Menu Directly'
+              )}
             </button>
           </Link>
         </div>
