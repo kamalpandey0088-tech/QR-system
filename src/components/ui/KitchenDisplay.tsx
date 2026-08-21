@@ -1,218 +1,473 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, CheckCircle2, ChefHat, Play, AlertCircle, Package } from 'lucide-react';
+import { ChefHat, Clock, Play, CheckCircle2, Package, AlertCircle, LogOut, Flame } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
-interface KDSOrderItem {
+type OrderItem = {
   id: string;
-  itemName: string;
+  name: string;
   quantity: number;
-  notes: string | null;
-  modifiers: { modifierName: string }[];
-}
+  notes?: string;
+  modifiers?: any; // Adjust based on your schema
+};
 
-interface KDSOrder {
+type Order = {
   id: string;
-  orderNumber: number;
-  tableNumber: string | null;
-  status: 'PENDING' | 'PAID' | 'PREPARING' | 'READY';
-  items: KDSOrderItem[];
+  orderNumber: string;
+  tableNumber: string;
   createdAt: string;
-  paidAt: string | null;
-}
+  status: 'PENDING' | 'PAID' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED';
+  items: OrderItem[];
+};
 
-export default function KitchenDisplay({ tenantId }: { tenantId?: string }) {
+type MenuItem = {
+  id: string;
+  name: string;
+  isAvailable: boolean;
+  category: {
+    name: string;
+  };
+};
+
+export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
   const [activeTab, setActiveTab] = useState<'orders' | 'stock'>('orders');
-  const [orders, setOrders] = useState<KDSOrder[]>([]);
-  const [menuItems, setMenuItems] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Fetch initial orders
+  // Clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch orders
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch('/api/kds/orders');
+      if (res.ok) {
+        const data = await res.json();
+        // Placeholder for sound notification when new orders arrive
+        // if (data.length > orders.length) playNewOrderSound();
+        setOrders(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+    }
+  };
+
+  // Fetch menu items for stock
+  const fetchMenuItems = async () => {
+    try {
+      const res = await fetch(`/api/menu/items?tenantId=${tenantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMenuItems(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch menu items:', error);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
+    const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'stock' && tenantId) {
+    if (activeTab === 'stock') {
       fetchMenuItems();
     }
   }, [activeTab, tenantId]);
 
-  const fetchOrders = async () => {
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      const res = await fetch('/api/kds/orders');
-      const data = await res.json();
-      if (data.success) {
-        setOrders(data.data);
-      }
-    } catch (e) {
-      console.error('Failed to fetch orders', e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchMenuItems = async () => {
-    try {
-      const res = await fetch(`/api/menu/items?tenant_id=${tenantId}&include_all=true`);
-      const data = await res.json();
-      if (data.success) {
-        setMenuItems(data.data);
-      }
-    } catch (e) {
-      console.error('Failed to fetch menu items', e);
-    }
-  };
-
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    // Optimistic update
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus as any } : o)).filter((o) => o.status !== 'COMPLETED')
-    );
-
-    try {
-      await fetch(`/api/orders/${orderId}/status`, {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-    } catch (e) {
-      fetchOrders();
+      if (res.ok) {
+        fetchOrders();
+      }
+    } catch (error) {
+      console.error('Failed to update order status:', error);
     }
   };
 
-  const toggleStock = async (itemId: string, currentAvailable: boolean) => {
-    // Optimistic update
-    setMenuItems(prev => prev.map(item => item.id === itemId ? { ...item, isAvailable: !currentAvailable } : item));
+  const toggleStock = async (itemId: string, currentStatus: boolean) => {
     try {
-      await fetch(`/api/menu/items/${itemId}/availability`, {
+      const res = await fetch(`/api/menu/items/${itemId}/availability`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAvailable: !currentAvailable }),
+        body: JSON.stringify({ isAvailable: !currentStatus }),
       });
-    } catch (e) {
-      fetchMenuItems();
+      if (res.ok) {
+        fetchMenuItems();
+      }
+    } catch (error) {
+      console.error('Failed to toggle stock:', error);
     }
   };
 
-  // Group orders by status
-  const pending = orders.filter((o) => o.status === 'PENDING' || o.status === 'PAID');
-  const preparing = orders.filter((o) => o.status === 'PREPARING');
-  const ready = orders.filter((o) => o.status === 'READY');
+  const pendingOrders = orders.filter((o) => ['PENDING', 'PAID'].includes(o.status));
+  const preparingOrders = orders.filter((o) => o.status === 'PREPARING');
+  const readyOrders = orders.filter((o) => o.status === 'READY');
 
-  const TicketCard = ({ order, actionBtn }: { order: KDSOrder, actionBtn: React.ReactNode }) => {
-    const waitTime = Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / 60000);
+  const getWaitTimeMinutes = (createdAt: string) => {
+    const diffMs = currentTime.getTime() - new Date(createdAt).getTime();
+    return Math.floor(diffMs / 60000);
+  };
+
+  const renderOrderCard = (order: Order, type: 'pending' | 'preparing' | 'ready') => {
+    const waitTime = getWaitTimeMinutes(order.createdAt);
     const isUrgent = waitTime > 15;
 
     return (
-      <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-        className={`flex flex-col bg-gray-900 rounded-3xl p-5 shadow-2xl border ${isUrgent ? 'border-red-500/50' : 'border-gray-800'}`}>
-        <div className="flex justify-between items-start mb-4 border-b border-gray-800 pb-4">
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 50, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        key={order.id}
+        className={`relative flex flex-col p-5 rounded-2xl backdrop-blur-md bg-white/5 border ${
+          isUrgent && (type === 'pending' || type === 'preparing')
+            ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+            : 'border-white/10'
+        } overflow-hidden`}
+      >
+        {isUrgent && (type === 'pending' || type === 'preparing') && (
+          <motion.div
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+            className="absolute inset-0 bg-red-500/5 pointer-events-none"
+          />
+        )}
+        
+        <div className="flex justify-between items-start mb-4 z-10">
           <div>
-            <h3 className="text-3xl font-black text-white">#{order.orderNumber}</h3>
-            {order.tableNumber && (
-              <span className="inline-flex items-center mt-2 px-3 py-1 rounded-lg bg-gray-800 text-gray-300 font-bold text-sm">
-                Table {order.tableNumber}
-              </span>
-            )}
+            <span className="text-2xl font-bold text-white tracking-tight">#{order.orderNumber}</span>
+            <div className="text-gray-400 text-sm mt-1">Table {order.tableNumber}</div>
           </div>
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-sm ${isUrgent ? 'bg-red-500/20 text-red-400' : 'bg-gray-800 text-gray-400'}`}>
-            <Clock className="w-4 h-4" />{waitTime}m
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
+              isUrgent ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-gray-300'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            {waitTime}m
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto mb-4 space-y-3">
+
+        <div className="flex-1 space-y-3 mb-6 z-10 overflow-y-auto max-h-[250px] pr-2 scrollbar-thin scrollbar-thumb-white/10">
           {order.items.map((item) => (
             <div key={item.id} className="flex gap-3">
-              <span className="font-black text-xl text-primary-light bg-gray-800 h-8 w-8 rounded-lg flex items-center justify-center shrink-0">{item.quantity}</span>
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-semibold">
+                {item.quantity}
+              </div>
               <div>
-                <p className="font-bold text-lg text-white leading-tight">{item.itemName}</p>
-                {item.modifiers.length > 0 && <p className="text-sm text-gray-400 mt-1">+ {item.modifiers.map(m => m.modifierName).join(', ')}</p>}
-                {item.notes && <p className="text-sm text-amber-400/90 font-medium mt-1.5 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20 flex items-start gap-1.5"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{item.notes}</p>}
+                <div className="text-white font-medium">{item.name}</div>
+                {item.modifiers && (
+                  <div className="text-gray-400 text-xs mt-0.5">
+                    {Array.isArray(item.modifiers) ? item.modifiers.join(', ') : JSON.stringify(item.modifiers)}
+                  </div>
+                )}
+                {item.notes && (
+                  <div className="text-amber-400/80 text-sm mt-1 bg-amber-400/10 px-2 py-1 rounded">
+                    Note: {item.notes}
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-auto pt-4 border-t border-gray-800">{actionBtn}</div>
+
+        <div className="mt-auto z-10">
+          {type === 'pending' && (
+            <button
+              onClick={() => updateOrderStatus(order.id, 'PREPARING')}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all duration-300 active:scale-95"
+            >
+              <Flame className="w-5 h-5" />
+              Start Cooking
+            </button>
+          )}
+          {type === 'preparing' && (
+            <button
+              onClick={() => updateOrderStatus(order.id, 'READY')}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300 active:scale-95"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              Mark Ready
+            </button>
+          )}
+          {type === 'ready' && (
+            <button
+              onClick={() => updateOrderStatus(order.id, 'COMPLETED')}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-gray-300 bg-white/10 hover:bg-white/20 hover:text-white transition-all duration-300 active:scale-95"
+            >
+              <Package className="w-5 h-5" />
+              Complete Order
+            </button>
+          )}
+        </div>
       </motion.div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-black font-brand p-6">
-      <header className="flex justify-between items-center mb-8 bg-gray-900 p-4 rounded-3xl border border-gray-800">
-        <div className="flex items-center gap-6">
-          <div className="bg-primary p-3 rounded-2xl"><ChefHat className="w-8 h-8 text-white" /></div>
-          <div>
-            <h1 className="text-2xl font-black text-white">Lumina Kitchen</h1>
-            <p className="text-gray-400 font-medium flex items-center gap-2">
-              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
-              Live Sync Active
-            </p>
-          </div>
+    <div className="min-h-screen bg-[#0A0E17] text-white overflow-hidden relative selection:bg-indigo-500/30">
+      {/* Background Animated Orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 150, repeat: Infinity, ease: 'linear' }}
+          className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full bg-blue-900/10 blur-[120px]"
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 200, repeat: Infinity, ease: 'linear' }}
+          className="absolute -bottom-[20%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-emerald-900/10 blur-[120px]"
+        />
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute top-[30%] left-[40%] w-[40vw] h-[40vw] rounded-full bg-purple-900/10 blur-[100px]"
+        />
+      </div>
+
+      <div className="relative z-10 flex flex-col h-screen">
+        {/* Header */}
+        <header className="relative backdrop-blur-xl bg-[#0A0E17]/80 border-b border-white/10 px-8 py-5">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500" />
           
-          <div className="ml-8 flex bg-gray-800 p-1 rounded-2xl">
-            <button onClick={() => setActiveTab('orders')} className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'orders' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}>Live Orders</button>
-            <button onClick={() => setActiveTab('stock')} className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'stock' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}>Menu Stock</button>
-          </div>
-        </div>
-      </header>
-
-      {activeTab === 'orders' ? (
-        <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
-          <section className="flex flex-col bg-gray-900/50 rounded-[2.5rem] p-6 border border-gray-800">
-            <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2"><span className="bg-blue-500 w-3 h-3 rounded-full" /> New Orders</h2>
-            <div className="flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-hide">
-              <AnimatePresence>
-                {pending.map((order) => <TicketCard key={order.id} order={order} actionBtn={<button onClick={() => updateStatus(order.id, 'PREPARING')} className="w-full flex justify-center items-center gap-2 py-4 bg-primary hover:bg-primary-light text-white rounded-2xl font-black text-lg transition-colors active:scale-95"><Play className="w-5 h-5 fill-current" /> Start Cooking</button>} />)}
-              </AnimatePresence>
-            </div>
-          </section>
-
-          <section className="flex flex-col bg-gray-900/50 rounded-[2.5rem] p-6 border border-gray-800">
-            <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2"><span className="bg-amber-500 w-3 h-3 rounded-full" /> Preparing</h2>
-            <div className="flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-hide">
-              <AnimatePresence>
-                {preparing.map((order) => <TicketCard key={order.id} order={order} actionBtn={<button onClick={() => updateStatus(order.id, 'READY')} className="w-full flex justify-center items-center gap-2 py-4 bg-green-500 hover:bg-green-400 text-white rounded-2xl font-black text-lg transition-colors active:scale-95"><CheckCircle2 className="w-6 h-6" /> Mark Ready</button>} />)}
-              </AnimatePresence>
-            </div>
-          </section>
-
-          <section className="flex flex-col bg-gray-900/50 rounded-[2.5rem] p-6 border border-gray-800">
-            <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2"><span className="bg-green-500 w-3 h-3 rounded-full" /> Ready for Pickup</h2>
-            <div className="flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-hide opacity-60">
-              <AnimatePresence>
-                {ready.map((order) => <TicketCard key={order.id} order={order} actionBtn={<button onClick={() => updateStatus(order.id, 'COMPLETED')} className="w-full py-4 bg-gray-800 text-gray-400 rounded-2xl font-bold text-lg hover:bg-gray-700 transition-colors active:scale-95">Complete Order</button>} />)}
-              </AnimatePresence>
-            </div>
-          </section>
-        </main>
-      ) : (
-        <main className="bg-gray-900 rounded-[2.5rem] p-8 border border-gray-800 min-h-[calc(100vh-140px)]">
-          <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-3">
-            <Package className="w-6 h-6 text-gray-400" /> Mark Items Out of Stock
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {menuItems.map(item => (
-              <div key={item.id} className={`flex items-center justify-between p-5 rounded-2xl border ${item.isAvailable ? 'bg-gray-800 border-gray-700' : 'bg-red-500/10 border-red-500/30'}`}>
-                <div>
-                  <h3 className={`font-bold text-lg ${item.isAvailable ? 'text-white' : 'text-red-400 line-through'}`}>{item.name}</h3>
-                  <p className="text-gray-400 text-sm">₹{item.price}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  <ChefHat className="w-7 h-7 text-white" />
                 </div>
-                <button 
-                  onClick={() => toggleStock(item.id, item.isAvailable)}
-                  className={`px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 ${item.isAvailable ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-green-500 text-white hover:bg-green-400 shadow-lg shadow-green-500/20'}`}
+                <div>
+                  <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                    Kitchen Display
+                  </h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-sm text-emerald-400 font-medium">Live Server</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex bg-white/5 p-1.5 rounded-2xl backdrop-blur-sm border border-white/5 ml-4">
+                <button
+                  onClick={() => setActiveTab('orders')}
+                  className={`relative px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors ${
+                    activeTab === 'orders' ? 'text-white' : 'text-gray-400 hover:text-white'
+                  }`}
                 >
-                  {item.isAvailable ? 'Mark Out of Stock' : 'Mark Available'}
+                  {activeTab === 'orders' && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute inset-0 bg-white/10 rounded-xl"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Play className="w-4 h-4" />
+                    Active Orders
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('stock')}
+                  className={`relative px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors ${
+                    activeTab === 'stock' ? 'text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {activeTab === 'stock' && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute inset-0 bg-white/10 rounded-xl"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Item Stock
+                  </span>
                 </button>
               </div>
-            ))}
-            {menuItems.length === 0 && <p className="text-gray-500 font-bold p-4">No menu items found.</p>}
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <div className="text-3xl font-light tabular-nums tracking-tight">
+                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+                <div className="text-gray-400 text-sm">
+                  {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+              <button 
+                onClick={() => signOut()}
+                className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all active:scale-95 text-gray-400"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {activeTab === 'orders' ? (
+              <motion.div
+                key="orders-view"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="h-full grid grid-cols-1 md:grid-cols-3 gap-6 p-8 overflow-hidden"
+              >
+                {/* Pending Column */}
+                <div className="flex flex-col h-full bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden backdrop-blur-sm">
+                  <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.01]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]" />
+                      <h2 className="text-lg font-semibold text-gray-200">New Orders</h2>
+                    </div>
+                    <div className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-sm font-bold border border-blue-500/20">
+                      {pendingOrders.length}
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+                    <AnimatePresence mode="popLayout">
+                      {pendingOrders.map((order) => renderOrderCard(order, 'pending'))}
+                    </AnimatePresence>
+                    {pendingOrders.length === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
+                        <Package className="w-12 h-12 opacity-20" />
+                        <p>No pending orders</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Preparing Column */}
+                <div className="flex flex-col h-full bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden backdrop-blur-sm">
+                  <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.01]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse" />
+                      <h2 className="text-lg font-semibold text-gray-200">Preparing</h2>
+                    </div>
+                    <div className="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-sm font-bold border border-amber-500/20">
+                      {preparingOrders.length}
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+                    <AnimatePresence mode="popLayout">
+                      {preparingOrders.map((order) => renderOrderCard(order, 'preparing'))}
+                    </AnimatePresence>
+                    {preparingOrders.length === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
+                        <Flame className="w-12 h-12 opacity-20" />
+                        <p>Nothing being prepared</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Ready Column */}
+                <div className="flex flex-col h-full bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden backdrop-blur-sm">
+                  <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.01]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
+                      <h2 className="text-lg font-semibold text-gray-200">Ready for Pickup</h2>
+                    </div>
+                    <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-sm font-bold border border-emerald-500/20">
+                      {readyOrders.length}
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10">
+                    <AnimatePresence mode="popLayout">
+                      {readyOrders.map((order) => renderOrderCard(order, 'ready'))}
+                    </AnimatePresence>
+                    {readyOrders.length === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
+                        <CheckCircle2 className="w-12 h-12 opacity-20" />
+                        <p>No orders ready</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="stock-view"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="h-full p-8 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10"
+              >
+                <div className="max-w-4xl mx-auto space-y-6">
+                  {Object.entries(
+                    menuItems.reduce((acc, item) => {
+                      const cat = item.category?.name || 'Uncategorized';
+                      if (!acc[cat]) acc[cat] = [];
+                      acc[cat].push(item);
+                      return acc;
+                    }, {} as Record<string, MenuItem[]>)
+                  ).map(([category, items]) => (
+                    <div key={category} className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden backdrop-blur-sm">
+                      <div className="px-6 py-4 bg-white/[0.03] border-b border-white/5">
+                        <h3 className="text-lg font-semibold text-white">{category}</h3>
+                      </div>
+                      <div className="divide-y divide-white/5">
+                        {items.map((item) => (
+                          <div key={item.id} className="p-6 flex items-center justify-between hover:bg-white/[0.01] transition-colors">
+                            <div>
+                              <div className="text-lg font-medium text-white">{item.name}</div>
+                              <div className={`text-sm mt-1 ${item.isAvailable ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {item.isAvailable ? 'In Stock' : 'Out of Stock'}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => toggleStock(item.id, item.isAvailable)}
+                              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none ${
+                                item.isAvailable ? 'bg-emerald-500' : 'bg-gray-600'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                                  item.isAvailable ? 'translate-x-7' : 'translate-x-1'
+                                } shadow-md`}
+                              />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {menuItems.length === 0 && (
+                    <div className="text-center text-gray-500 mt-20">
+                      Loading menu items or no items found.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
-      )}
+      </div>
     </div>
   );
 }
