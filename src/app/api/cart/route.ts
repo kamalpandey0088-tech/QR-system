@@ -97,19 +97,16 @@ export async function POST(request: NextRequest) {
     const menuItem = await validateItemAvailability(menuItemId, session.tenantId);
     const modifiers = await validateModifiers(modifierIds ?? [], session.tenantId);
 
-    let cart = await prisma.cart.findUnique({
+    // Use upsert to prevent Unique Constraint (409) errors if user rapidly double-clicks
+    let cart = await prisma.cart.upsert({
       where: { sessionId: session.id },
+      update: {},
+      create: {
+        tenantId: session.tenantId,
+        sessionId: session.id,
+        status: 'ACTIVE',
+      },
     });
-
-    if (!cart || cart.status !== 'ACTIVE') {
-      cart = await prisma.cart.create({
-        data: {
-          tenantId: session.tenantId,
-          sessionId: session.id,
-          status: 'ACTIVE',
-        },
-      });
-    }
 
     const cartItem = await prisma.cartItem.create({
       data: {

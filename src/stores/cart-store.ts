@@ -133,6 +133,33 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     // ── SERVER MODE (real QR session) ────────────────────────────────────
     set({ isLoading: true, error: null });
+    
+    // OPTIMISTIC UI: Instantly update the cart visually before network request finishes
+    const price = itemMeta?.price ?? 0;
+    const name = itemMeta?.name ?? 'Item';
+    const existing = items.find(i => i.menuItemId === menuItemId);
+    let optimisticItems;
+    if (existing) {
+      optimisticItems = items.map(i =>
+        i.menuItemId === menuItemId
+          ? { ...i, quantity: i.quantity + quantity, lineTotal: (i.quantity + quantity) * i.unitPrice }
+          : i
+      );
+    } else {
+      optimisticItems = [...items, {
+        id: `temp-${Date.now()}`,
+        menuItemId,
+        menuItemName: name,
+        quantity,
+        unitPrice: price,
+        notes: notes ?? null,
+        isAvailable: true,
+        modifiers: [],
+        lineTotal: price * quantity,
+      }];
+    }
+    set({ items: optimisticItems, ...calcTotals(optimisticItems) });
+
     try {
       const response = await fetch('/api/cart', {
         method: 'POST',
@@ -144,6 +171,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const data = await response.json();
       if (!data.success) throw new Error(data.error ?? 'Failed to add item');
 
+      // Fetch the true calculated cart state to sync
       const cartResponse = await fetch('/api/cart', { credentials: 'include' });
       const cartData = await cartResponse.json();
 
@@ -158,7 +186,10 @@ export const useCartStore = create<CartState>((set, get) => ({
         });
       }
     } catch (error) {
+      // Revert optimistic update on failure
       set({
+        items, // back to original
+        ...calcTotals(items),
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to add item',
       });
