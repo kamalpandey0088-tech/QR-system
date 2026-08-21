@@ -85,32 +85,40 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
   }, [activeTab, tenantId]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    // Optimistic UI update for instant feedback
+    setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: newStatus } : order));
+
     try {
       const res = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        fetchOrders();
+      if (!res.ok) {
+        fetchOrders(); // Revert on error
       }
     } catch (error) {
       console.error('Failed to update order status:', error);
+      fetchOrders(); // Revert on error
     }
   };
 
   const toggleStock = async (itemId: string, currentStatus: boolean) => {
+    // Optimistic UI update for instant feedback
+    setMenuItems(prev => prev.map(item => item.id === itemId ? { ...item, isAvailable: !currentStatus } : item));
+
     try {
       const res = await fetch(`/api/menu/items/${itemId}/availability`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isAvailable: !currentStatus }),
       });
-      if (res.ok) {
-        fetchMenuItems();
+      if (!res.ok) {
+        fetchMenuItems(); // Revert on error
       }
     } catch (error) {
       console.error('Failed to toggle stock:', error);
+      fetchMenuItems(); // Revert on error
     }
   };
 
