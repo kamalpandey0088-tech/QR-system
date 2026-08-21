@@ -57,12 +57,13 @@ export default async function MenuPage({
 
   return (
     <>
-      <SessionInitializer token={sessionToken} />
-      <CustomerMenu
+      <SessionInitializer token={sessionToken}>
+        <CustomerMenu
         tenantName={tenant.name}
         initialCategories={categories.map(c => ({ id: c.id, name: c.name }))}
         initialItems={items}
       />
+      </SessionInitializer>
     </>
   );
 }

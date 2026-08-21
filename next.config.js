@@ -29,7 +29,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' ws://localhost:* wss://* https://api.razorpay.com",
+              "connect-src 'self' ws://localhost:* wss://* https://api.razorpay.com https://lumberjack.razorpay.com",
               "frame-src https://api.razorpay.com https://checkout.razorpay.com",
               "object-src 'none'",
               "base-uri 'self'",
