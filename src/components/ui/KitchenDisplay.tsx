@@ -86,7 +86,7 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     // Optimistic UI update for instant feedback
-    setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: newStatus } : order));
+    setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: newStatus as any } : order));
 
     try {
       const res = await fetch(`/api/orders/${orderId}/status`, {
