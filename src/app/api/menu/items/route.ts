@@ -14,10 +14,15 @@ export async function GET(request: NextRequest) {
       throw new AppError('Valid tenant_id query parameter required', 400);
     }
 
+    const includeAll = request.nextUrl.searchParams.get('include_all') === 'true';
+
     const where: Record<string, unknown> = {
       tenantId,
-      isAvailable: true,
     };
+
+    if (!includeAll) {
+      where.isAvailable = true;
+    }
 
     if (categoryId) {
       if (!isValidUUID(categoryId)) {
