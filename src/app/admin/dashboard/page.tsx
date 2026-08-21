@@ -147,7 +147,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link 
-              href="/admin/kitchen" 
+              href="/kitchen" 
               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg backdrop-blur-sm transition-all text-sm font-medium"
             >
               <ChefHat size={16} />
@@ -170,7 +170,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-slate-400 text-sm font-medium mb-1">Today's Revenue</p>
                 <h3 className="text-3xl font-bold text-white tracking-tight">
-                  <CountUp to={todayRevenue} prefix="$" decimals={2} />
+                  <CountUp to={todayRevenue} prefix="₹" decimals={2} />
                 </h3>
               </div>
               <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
@@ -185,7 +185,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-slate-400 text-sm font-medium mb-1">Monthly Revenue</p>
                 <h3 className="text-3xl font-bold text-white tracking-tight">
-                  <CountUp to={monthRevenue} prefix="$" decimals={2} />
+                  <CountUp to={monthRevenue} prefix="₹" decimals={2} />
                 </h3>
               </div>
               <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -238,7 +238,7 @@ export default function DashboardPage() {
                 return (
                   <div key={day.date} className="flex flex-col items-center flex-1 gap-2 group cursor-crosshair">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium bg-white/10 px-2 py-1 rounded backdrop-blur-md absolute -mt-10">
-                      ${day.revenue.toFixed(2)}
+                      ₹${day.revenue.toFixed(2)}
                     </div>
                     <div className="w-full bg-white/5 rounded-t-sm relative overflow-hidden h-full flex items-end">
                       <motion.div 
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                         {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="p-4 text-right font-medium text-white">
-                        ${Number(order.total).toFixed(2)}
+                        ₹${Number(order.total).toFixed(2)}
                       </td>
                     </tr>
                   )) : (

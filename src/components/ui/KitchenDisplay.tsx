@@ -50,7 +50,7 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
         const data = await res.json();
         // Placeholder for sound notification when new orders arrive
         // if (data.length > orders.length) playNewOrderSound();
-        setOrders(data);
+        setOrders(data.success ? data.data : []);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -63,7 +63,7 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
       const res = await fetch(`/api/menu/items?tenantId=${tenantId}`);
       if (res.ok) {
         const data = await res.json();
-        setMenuItems(data);
+        setMenuItems(data.success ? data.data : []);
       }
     } catch (error) {
       console.error('Failed to fetch menu items:', error);
