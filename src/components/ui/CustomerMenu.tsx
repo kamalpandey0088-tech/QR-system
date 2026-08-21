@@ -180,7 +180,7 @@ const FOOD_THEMES: Record<string, {
 // ─── Ultra 3D Dish Card ───────────────────────────────────────────────────────
 function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const theme = FOOD_THEMES[item.themeKey] ?? FOOD_THEMES.truffle;
+  const theme = FOOD_THEMES[item.themeKey] ?? FOOD_THEMES.truffle!;
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);

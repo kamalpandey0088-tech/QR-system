@@ -31,7 +31,7 @@ export function formatESCPOSPayload(printJob: PrintJob): Buffer {
 
   // KOT Header
   const header = `*** KOT #${printJob.orderNumber} ***`;
-  commands.push(...Buffer.from(header));
+  commands.push(...Array.from(Buffer.from(header)));
   commands.push(0x0a); // Line feed
 
   // Normal size
@@ -40,16 +40,16 @@ export function formatESCPOSPayload(printJob: PrintJob): Buffer {
 
   // Table number
   if (printJob.tableNumber) {
-    commands.push(...Buffer.from(`Table: ${printJob.tableNumber}`));
+    commands.push(...Array.from(Buffer.from(`Table: ${printJob.tableNumber}`)));
     commands.push(0x0a);
   }
 
   // Timestamp
-  commands.push(...Buffer.from(`Time: ${printJob.timestamp}`));
+  commands.push(...Array.from(Buffer.from(`Time: ${printJob.timestamp}`)));
   commands.push(0x0a);
 
   // Divider line
-  commands.push(...Buffer.from('--------------------------------'));
+  commands.push(...Array.from(Buffer.from('--------------------------------')));
   commands.push(0x0a);
 
   // Left alignment for items
@@ -59,30 +59,30 @@ export function formatESCPOSPayload(printJob: PrintJob): Buffer {
   for (const item of printJob.items) {
     // Bold for item name + quantity
     commands.push(0x1b, 0x45, 0x01);
-    commands.push(...Buffer.from(`${item.quantity}x ${item.name}`));
+    commands.push(...Array.from(Buffer.from(`${item.quantity}x ${item.name}`)));
     commands.push(0x0a);
     commands.push(0x1b, 0x45, 0x00);
 
     // Modifiers (indented)
     for (const modifier of item.modifiers) {
-      commands.push(...Buffer.from(`   + ${modifier}`));
+      commands.push(...Array.from(Buffer.from(`   + ${modifier}`)));
       commands.push(0x0a);
     }
 
     // Notes (indented, if any)
     if (item.notes) {
-      commands.push(...Buffer.from(`   Note: ${item.notes}`));
+      commands.push(...Array.from(Buffer.from(`   Note: ${item.notes}`)));
       commands.push(0x0a);
     }
   }
 
   // Divider
-  commands.push(...Buffer.from('--------------------------------'));
+  commands.push(...Array.from(Buffer.from('--------------------------------')));
   commands.push(0x0a);
 
   // Center footer
   commands.push(0x1b, 0x61, 0x01);
-  commands.push(...Buffer.from(`Order #${printJob.orderNumber}`));
+  commands.push(...Array.from(Buffer.from(`Order #${printJob.orderNumber}`)));
   commands.push(0x0a, 0x0a);
 
   // Cut paper

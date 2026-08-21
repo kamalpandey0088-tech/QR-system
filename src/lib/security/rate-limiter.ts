@@ -92,11 +92,11 @@ class RateLimiter {
     const now = Date.now();
     const maxAge = 15 * 60 * 1000; // 15 minutes
 
-    for (const [key, entry] of this.buckets) {
+    this.buckets.forEach((entry, key) => {
       if (now - entry.lastRefill > maxAge) {
         this.buckets.delete(key);
       }
-    }
+    });
   }
 
   /** Destroy the rate limiter and clear the cleanup interval */

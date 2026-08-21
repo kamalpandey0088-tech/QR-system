@@ -118,4 +118,4 @@ export const authOptions = {
   debug: false, // NEVER enable debug in production - it leaks sensitive info
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions as any);
