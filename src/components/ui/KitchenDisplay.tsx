@@ -35,6 +35,8 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Clock
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
         const data = await res.json();
         // Placeholder for sound notification when new orders arrive
         // if (data.length > orders.length) playNewOrderSound();
-        setOrders(data.success ? data.data : []);
+        setOrders(data.success ? (data.data || []) : []);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -63,7 +65,7 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
       const res = await fetch(`/api/menu/items?tenantId=${tenantId}`);
       if (res.ok) {
         const data = await res.json();
-        setMenuItems(data.success ? data.data : []);
+        setMenuItems(data.success ? (data.data || []) : []);
       }
     } catch (error) {
       console.error('Failed to fetch menu items:', error);
@@ -308,10 +310,10 @@ export default function KitchenDisplay({ tenantId }: { tenantId: string }) {
             <div className="flex items-center gap-6">
               <div className="text-right">
                 <div className="text-3xl font-light tabular-nums tracking-tight">
-                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {mounted ? currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
                 </div>
                 <div className="text-gray-400 text-sm">
-                  {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                  {mounted ? currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) : '...'}
                 </div>
               </div>
               <button 

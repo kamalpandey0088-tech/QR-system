@@ -285,7 +285,7 @@ export default function DashboardPage() {
           <motion.div variants={itemVariants} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl lg:col-span-2 overflow-hidden flex flex-col">
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <h3 className="text-lg font-medium text-white">Recent Orders</h3>
-              <Link href="/admin/orders" className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+              <Link href="/kitchen" className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
                 View All <ArrowRight size={14} />
               </Link>
             </div>
