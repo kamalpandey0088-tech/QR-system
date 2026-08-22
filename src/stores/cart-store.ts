@@ -183,6 +183,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (error) {
       // Revert optimistic update on failure
       console.error("[CART_STORE] POST /api/cart failed:", error);
+      if (typeof window !== 'undefined') window.alert("Network Error: " + (error instanceof Error ? error.message : "Failed to add item to server. Please try again."));
+      if (typeof window !== 'undefined' && (window as any).toast) {
+        (window as any).toast.error(error instanceof Error ? error.message : "Network error");
+      }
       set({
         items, // back to original
         ...calcTotals(items),

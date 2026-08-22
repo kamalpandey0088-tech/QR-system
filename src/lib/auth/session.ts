@@ -120,7 +120,13 @@ export async function getSessionFromRequest(
   }
 
   const cookies = parseCookie(cookieHeader);
-  const sessionToken = cookies[SESSION_COOKIE_NAME];
+  let sessionToken = cookies[SESSION_COOKIE_NAME];
+  if (!sessionToken) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      sessionToken = authHeader.substring(7);
+    }
+  }
 
   if (!sessionToken) {
     return null;

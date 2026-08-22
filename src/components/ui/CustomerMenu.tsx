@@ -579,7 +579,7 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => handleCheckout('CASH')} disabled={isCheckingOut} className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50">
+                <button onClick={() => handleCheckout('CASH')} disabled={cart.isLoading || isCheckingOut || cart.items.length === 0} disabled={isCheckingOut} className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50">
                   <span className="font-black text-[15px]">Pay at Counter</span>
                   <span className="text-[11px] opacity-60 font-bold uppercase tracking-widest">Cash / Card</span>
                 </button>
