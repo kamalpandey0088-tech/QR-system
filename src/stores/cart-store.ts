@@ -72,6 +72,17 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       const response = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
       const data = await response.json();
+      if (!data.success) throw new Error(data.error ?? 'Failed to add item');
+
+      set({
+        cartId: data.data.id,
+        items: data.data.items,
+        subtotal: data.data.subtotal,
+        tax: data.data.tax,
+        total: data.data.total,
+        isLoading: false,
+      });
+    
 
       // 401 = no session cookie, operate in local mode silently
       if (response.status === 401) {
@@ -169,22 +180,15 @@ export const useCartStore = create<CartState>((set, get) => ({
       });
 
       const data = await response.json();
-      if (!data.success) throw new Error(data.error ?? 'Failed to add item');
+      if (!data.success) throw new Error(data.error ?? 'Failed to update item');
 
-      // Fetch the true calculated cart state to sync
-      const cartResponse = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
-      const cartData = await cartResponse.json();
-
-      if (cartData.success) {
-        set({
-          cartId: cartData.data.id,
-          items: cartData.data.items,
-          subtotal: cartData.data.subtotal,
-          tax: cartData.data.tax,
-          total: cartData.data.total,
-          isLoading: false,
-        });
-      }
+      set({
+        items: data.data.items,
+        subtotal: data.data.subtotal,
+        tax: data.data.tax,
+        total: data.data.total,
+        isLoading: false,
+      });
     } catch (error) {
       // Revert optimistic update on failure
       console.error("[CART_STORE] POST /api/cart failed:", error);
@@ -235,20 +239,15 @@ export const useCartStore = create<CartState>((set, get) => ({
       });
 
       const data = await response.json();
-      if (!data.success) throw new Error(data.error ?? 'Failed to update item');
+      if (!data.success) throw new Error(data.error ?? 'Failed to remove item');
 
-      const cartResponse = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
-      const cartData = await cartResponse.json();
-
-      if (cartData.success) {
-        set({
-          items: cartData.data.items,
-          subtotal: cartData.data.subtotal,
-          tax: cartData.data.tax,
-          total: cartData.data.total,
-          isLoading: false,
-        });
-      }
+      set({
+        items: data.data.items,
+        subtotal: data.data.subtotal,
+        tax: data.data.tax,
+        total: data.data.total,
+        isLoading: false,
+      });
     } catch (error) {
       set({
         items: originalItems,
@@ -283,30 +282,4 @@ export const useCartStore = create<CartState>((set, get) => ({
         credentials: 'include',
       });
 
-      const data = await response.json();
-      if (!data.success) throw new Error(data.error ?? 'Failed to remove item');
-
-      const cartResponse = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
-      const cartData = await cartResponse.json();
-
-      if (cartData.success) {
-        set({
-          items: cartData.data.items,
-          subtotal: cartData.data.subtotal,
-          tax: cartData.data.tax,
-          total: cartData.data.total,
-          isLoading: false,
-        });
-      }
-    } catch (error) {
-      set({
-        items: originalItems,
-        ...calcTotals(originalItems),
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to remove item',
-      });
-    }
-  },
-
-  clearError: () => set({ error: null }),
-}));
+      

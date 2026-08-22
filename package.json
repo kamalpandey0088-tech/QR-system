@@ -37,6 +37,7 @@
     "nanoid": "^5.0.9",
     "next": "^14.2.21",
     "next-auth": "5.0.0-beta.25",
+    "node-fetch": "^3.3.2",
     "node-thermal-printer": "^4.4.4",
     "razorpay": "^2.9.5",
     "react": "^18.3.1",

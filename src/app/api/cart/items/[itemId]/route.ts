@@ -37,9 +37,47 @@ export async function PATCH(
       select: { id: true, quantity: true, notes: true },
     });
 
+    const fullCart = await prisma.cart.findUnique({
+      where: { id: cartItem.cartId },
+      include: {
+        items: {
+          include: {
+            menuItem: { select: { name: true, price: true, isAvailable: true } },
+            modifiers: { include: { modifier: { select: { name: true, price: true } } } },
+          },
+        },
+      },
+    });
+
+    let subtotal = 0;
+    const formattedItems = (fullCart?.items || []).map((item) => {
+      const itemPrice = Number(item.unitPrice);
+      const modifierTotal = item.modifiers.reduce((sum, mod) => sum + Number(mod.price), 0);
+      const lineTotal = item.quantity * (itemPrice + modifierTotal);
+      subtotal += lineTotal;
+      return {
+        id: item.id,
+        menuItemId: item.menuItemId,
+        menuItemName: item.menuItem.name,
+        isAvailable: item.menuItem.isAvailable,
+        quantity: item.quantity,
+        unitPrice: itemPrice,
+        notes: item.notes,
+        modifiers: item.modifiers.map((m) => ({
+          id: m.modifierId,
+          modifierName: m.modifier.name,
+          price: Number(m.price),
+        })),
+        lineTotal: Math.round(lineTotal * 100) / 100,
+      };
+    });
+
+    const tax = Math.round(subtotal * 0.18 * 100) / 100;
+    const total = subtotal + tax;
+
     return NextResponse.json({
       success: true,
-      data: updated,
+      data: { id: cartItem.cartId, items: formattedItems, subtotal, tax, total },
       correlationId: createCorrelationId(),
     });
   } catch (error) {
@@ -73,9 +111,47 @@ export async function DELETE(
 
     await prisma.cartItem.delete({ where: { id: itemId } });
 
+    const fullCart = await prisma.cart.findUnique({
+      where: { id: cartItem.cartId },
+      include: {
+        items: {
+          include: {
+            menuItem: { select: { name: true, price: true, isAvailable: true } },
+            modifiers: { include: { modifier: { select: { name: true, price: true } } } },
+          },
+        },
+      },
+    });
+
+    let subtotal = 0;
+    const formattedItems = (fullCart?.items || []).map((item) => {
+      const itemPrice = Number(item.unitPrice);
+      const modifierTotal = item.modifiers.reduce((sum, mod) => sum + Number(mod.price), 0);
+      const lineTotal = item.quantity * (itemPrice + modifierTotal);
+      subtotal += lineTotal;
+      return {
+        id: item.id,
+        menuItemId: item.menuItemId,
+        menuItemName: item.menuItem.name,
+        isAvailable: item.menuItem.isAvailable,
+        quantity: item.quantity,
+        unitPrice: itemPrice,
+        notes: item.notes,
+        modifiers: item.modifiers.map((m) => ({
+          id: m.modifierId,
+          modifierName: m.modifier.name,
+          price: Number(m.price),
+        })),
+        lineTotal: Math.round(lineTotal * 100) / 100,
+      };
+    });
+
+    const tax = Math.round(subtotal * 0.18 * 100) / 100;
+    const total = subtotal + tax;
+
     return NextResponse.json({
       success: true,
-      data: { deleted: true },
+      data: { id: cartItem.cartId, items: formattedItems, subtotal, tax, total },
       correlationId: createCorrelationId(),
     });
   } catch (error) {
