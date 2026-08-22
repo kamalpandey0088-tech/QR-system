@@ -6,7 +6,12 @@ export default function SessionInitializer({ token, children }: { token: string,
   const [ready, setReady] = useState(false);
   
   useEffect(() => {
-    setCustomerSessionCookie(token)
+    new Promise((resolve) => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('customer_session_token', token);
+      }
+      resolve(null);
+    }).then(() => setCustomerSessionCookie(token))
       .then(() => setReady(true))
       .catch((err) => {
         console.error(err);

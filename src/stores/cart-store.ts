@@ -57,6 +57,25 @@ function calcTotals(items: CartItem[]) {
   return { subtotal, tax, total };
 }
 
+
+const getHeaders = () => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('customer_session_token');
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+  }
+  return headers;
+};
+
+const getBasicHeaders = () => {
+  const headers: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('customer_session_token');
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+  }
+  return headers;
+};
+
 export const useCartStore = create<CartState>((set, get) => ({
   cartId: null,
   items: [],
@@ -70,7 +89,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   fetchCart: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
+      const response = await fetch('/api/cart', { credentials: 'include', cache: 'no-store', headers: getBasicHeaders() });
       const data = await response.json();
 
       // 401 = no session cookie, operate in local mode silently
@@ -163,7 +182,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       const response = await fetch('/api/cart', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         credentials: 'include',
         body: JSON.stringify({ menuItemId, quantity, modifierIds, notes }),
       });
@@ -228,7 +247,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         credentials: 'include',
         body: JSON.stringify({ quantity, notes }),
       });
@@ -275,6 +294,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: getBasicHeaders(),
       });
 
       const data = await response.json();
