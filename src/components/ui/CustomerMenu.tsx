@@ -330,6 +330,7 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ paymentMethod: method }),
       });
       const data = await res.json();

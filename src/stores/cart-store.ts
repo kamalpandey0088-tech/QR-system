@@ -187,6 +187,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       }
     } catch (error) {
       // Revert optimistic update on failure
+      console.error("[CART_STORE] POST /api/cart failed:", error);
       set({
         items, // back to original
         ...calcTotals(items),
@@ -217,6 +218,14 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     // ── SERVER MODE ──────────────────────────────────────────────────────
     set({ isLoading: true, error: null });
+
+    // OPTIMISTIC UI:
+    const originalItems = items;
+    const optimisticItems = items.map(i => 
+      i.id === itemId ? { ...i, quantity, lineTotal: quantity * (i.unitPrice + i.modifiers.reduce((s, m) => s + m.price, 0)) } : i
+    );
+    set({ items: optimisticItems, ...calcTotals(optimisticItems) });
+
     try {
       const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'PATCH',
@@ -242,6 +251,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       }
     } catch (error) {
       set({
+        items: originalItems,
+        ...calcTotals(originalItems),
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to update item',
       });
@@ -260,6 +271,12 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     // ── SERVER MODE ──────────────────────────────────────────────────────
     set({ isLoading: true, error: null });
+
+    // OPTIMISTIC UI:
+    const originalItems = items;
+    const optimisticItems = items.filter(i => i.id !== itemId);
+    set({ items: optimisticItems, ...calcTotals(optimisticItems) });
+
     try {
       const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'DELETE',
@@ -283,6 +300,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       }
     } catch (error) {
       set({
+        items: originalItems,
+        ...calcTotals(originalItems),
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to remove item',
       });
