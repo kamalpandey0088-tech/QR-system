@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-brand antialiased overflow-x-hidden`}>
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
