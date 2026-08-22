@@ -39,8 +39,8 @@ export default function InvoicePage({ params }: { params: { orderId: string } })
           <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/30">
             <CheckCircle2 className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-black text-gray-900">Payment Successful</h1>
-          <p className="text-gray-500 font-bold mt-2 text-lg">Your food is being prepared!</p>
+          <h1 className="text-3xl font-black text-gray-900">{order.paymentMethod === 'CASH' ? 'Order Confirmed!' : 'Payment Successful'}</h1>
+          <p className="text-gray-500 font-bold mt-2 text-lg">Your food is being prepared! {order.paymentMethod === 'CASH' && 'You can pay the waiter at the end of your meal.'}</p>
         </motion.div>
 
         {/* Digital Invoice Ticket */}
