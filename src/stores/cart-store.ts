@@ -116,6 +116,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   addItem: async (menuItemId, quantity, modifierIds = [], notes, itemMeta) => {
+    if (get().isLoading) return;
     const { hasSession, items } = get();
 
     // ── LOCAL MODE (no session / demo menu) ─────────────────────────────
@@ -216,6 +217,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateItem: async (itemId, quantity, notes) => {
+    if (get().isLoading) return;
     const { hasSession, items } = get();
 
     // ── LOCAL MODE ───────────────────────────────────────────────────────
@@ -273,6 +275,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   removeItem: async (itemId) => {
+    if (get().isLoading) return;
     const { hasSession, items } = get();
 
     // ── LOCAL MODE ───────────────────────────────────────────────────────
