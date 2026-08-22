@@ -10,7 +10,8 @@ import {
   Clock,
   ArrowRight,
   LogOut,
-  Activity
+  Activity,
+  QrCode
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -146,6 +147,13 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Link 
+              href="/admin/qr-builder" 
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 border border-indigo-500/20 rounded-lg backdrop-blur-sm transition-all text-sm font-bold"
+            >
+              <QrCode size={16} />
+              Print QR Codes
+            </Link>
             <Link 
               href="/kitchen" 
               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg backdrop-blur-sm transition-all text-sm font-medium"
