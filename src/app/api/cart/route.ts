@@ -110,6 +110,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // If the cart was previously checked out (they placed an order), reset it for a new order
+    if (cart.status === 'CHECKED_OUT') {
+      await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+      cart = await prisma.cart.update({
+        where: { id: cart.id },
+        data: { status: 'ACTIVE' }
+      });
+    }
+
     const cartItem = await prisma.cartItem.create({
       data: {
         cartId: cart.id,
