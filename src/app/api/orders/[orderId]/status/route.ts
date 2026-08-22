@@ -33,12 +33,25 @@ export async function PATCH(
       throw new AppError(`Cannot transition from ${order.status} to ${newStatus}`, 400);
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
+    // ATOMIC UPDATE: Only update if the status hasn't changed in the milliseconds since we fetched it
+    const updatedOrderResponse = await prisma.order.updateMany({
+      where: { 
+        id: orderId,
+        status: order.status // Concurrency lock: Must match what we just validated
+      },
       data: {
         status: newStatus as 'PAID' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED' | 'REFUNDED',
         ...(newStatus === 'PAID' ? { paidAt: new Date() } : {}),
       },
+      });
+
+    if (updatedOrderResponse.count === 0) {
+      throw new AppError('Order status was already changed by another user', 409);
+    }
+
+    // Fetch the updated order since updateMany doesn't return the record
+    const updatedOrder = await prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
       select: {
         id: true,
         orderNumber: true,

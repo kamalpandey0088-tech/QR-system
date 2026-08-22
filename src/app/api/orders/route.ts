@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           tableNumber: tableNumber ?? session.tableNumber,
           paymentMethod,
           idempotencyKey,
-          paidAt: paymentMethod === 'CASH' ? new Date() : null,
+          paidAt: null, // Cash is unpaid until collected by staff
           items: {
             create: cart.items.map((item) => ({
               menuItemId: item.menuItem.id,

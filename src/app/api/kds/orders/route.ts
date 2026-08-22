@@ -27,6 +27,7 @@ export async function GET() {
       id: order.id,
       orderNumber: order.orderNumber,
       tableNumber: order.tableNumber,
+      paymentMethod: order.paymentMethod,
       status: order.status,
       items: order.items.map((item) => ({
         id: item.id,
