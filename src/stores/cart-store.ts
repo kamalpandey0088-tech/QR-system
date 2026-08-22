@@ -70,7 +70,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   fetchCart: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/cart', { credentials: 'include' });
+      const response = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
       const data = await response.json();
 
       // 401 = no session cookie, operate in local mode silently
@@ -172,7 +172,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       if (!data.success) throw new Error(data.error ?? 'Failed to add item');
 
       // Fetch the true calculated cart state to sync
-      const cartResponse = await fetch('/api/cart', { credentials: 'include' });
+      const cartResponse = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
       const cartData = await cartResponse.json();
 
       if (cartData.success) {
@@ -228,7 +228,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const data = await response.json();
       if (!data.success) throw new Error(data.error ?? 'Failed to update item');
 
-      const cartResponse = await fetch('/api/cart', { credentials: 'include' });
+      const cartResponse = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
       const cartData = await cartResponse.json();
 
       if (cartData.success) {
@@ -269,7 +269,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const data = await response.json();
       if (!data.success) throw new Error(data.error ?? 'Failed to remove item');
 
-      const cartResponse = await fetch('/api/cart', { credentials: 'include' });
+      const cartResponse = await fetch('/api/cart', { credentials: 'include', cache: 'no-store' });
       const cartData = await cartResponse.json();
 
       if (cartData.success) {
