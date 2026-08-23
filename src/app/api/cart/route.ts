@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const tax = Math.round(subtotal * 0.18 * 100) / 100;
+    const tax = Math.round(subtotal * 0.05 * 100) / 100;
     const total = subtotal + tax;
 
     return NextResponse.json(

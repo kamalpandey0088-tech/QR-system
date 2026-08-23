@@ -515,12 +515,12 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
                       <p className="text-gray-400 text-[13px] font-medium">₹{item.unitPrice} each</p>
                     </div>
                     <div className="flex items-center gap-3 bg-white/8 border border-white/10 p-1.5 rounded-2xl">
-                      <button onClick={() => cart.updateItem(item.id, item.quantity - 1)} disabled={cart.isLoading}
+                      <button onClick={() => cart.updateItem(item.id, item.quantity - 1)}
                         className="w-8 h-8 flex items-center justify-center text-gray-400 hover:bg-white/10 rounded-full transition-colors">
                         <Minus className="w-4 h-4" />
                       </button>
                       <span className="font-black text-white w-4 text-center text-[15px]">{item.quantity}</span>
-                      <button onClick={() => cart.updateItem(item.id, item.quantity + 1)} disabled={cart.isLoading}
+                      <button onClick={() => cart.updateItem(item.id, item.quantity + 1)}
                         className="w-8 h-8 flex items-center justify-center bg-white text-gray-900 rounded-full shadow-md">
                         <Plus className="w-4 h-4" />
                       </button>

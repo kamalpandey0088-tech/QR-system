@@ -217,7 +217,6 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateItem: async (itemId, quantity, notes) => {
-    if (get().isLoading) return;
     const { hasSession, items } = get();
 
     // ── LOCAL MODE ───────────────────────────────────────────────────────

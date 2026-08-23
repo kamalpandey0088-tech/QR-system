@@ -23,8 +23,8 @@ export const ORDER_STATUS_TRANSITIONS: Record<string, readonly string[]> = {
 
 /** Create order from cart - only needs the payment method */
 export const createOrderSchema = z.object({
-  paymentMethod: z.enum(['RAZORPAY', 'CASH', 'UPI_QR'], {
-    errorMap: () => ({ message: 'Payment method must be RAZORPAY, CASH, or UPI_QR' }),
+  paymentMethod: z.enum(['RAZORPAY', 'CASH', 'UPI'], {
+    errorMap: () => ({ message: 'Payment method must be RAZORPAY, CASH, or UPI' }),
   }),
   tableNumber: z
     .string()
