@@ -543,11 +543,11 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => handleCheckout('CASH')} disabled={cart.isLoading || isCheckingOut || cart.items.length === 0} className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50">
+                <button onClick={() => handleCheckout('CASH')} disabled={cart.pendingRequests > 0 || isCheckingOut || cart.items.length === 0} className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50">
                   <span className="font-black text-[15px]">Pay at Counter</span>
                   <span className="text-[11px] opacity-60 font-bold uppercase tracking-widest">Cash / Card</span>
                 </button>
-                <button onClick={() => handleCheckout('UPI')} disabled={cart.isLoading || isCheckingOut || cart.items.length === 0} className="relative flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] text-white overflow-hidden active:scale-95 transition-all shadow-[0_15px_40px_rgba(74,222,128,0.35)] disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+                <button onClick={() => handleCheckout('UPI')} disabled={cart.pendingRequests > 0 || isCheckingOut || cart.items.length === 0} className="relative flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] text-white overflow-hidden active:scale-95 transition-all shadow-[0_15px_40px_rgba(74,222,128,0.35)] disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                   <QrCode className="w-7 h-7" />
                   <span className="font-black text-[15px]">Scan & Pay</span>
                   <span className="text-[11px] opacity-90 font-bold uppercase tracking-widest">Via UPI · Free</span>

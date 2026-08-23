@@ -1,12 +1,5 @@
 /**
  * @fileoverview Zustand store for customer cart state.
- * 
- * Smart dual-mode cart:
- * - LOCAL mode: works instantly on the demo /menu page with no session needed.
- * - SERVER mode: syncs with the database when the customer has a real QR session cookie.
- *
- * This means the "Add to Order" button always works — whether arriving via QR scan
- * or directly navigating to /menu.
  */
 
 'use client';
@@ -37,7 +30,7 @@ interface CartState {
   subtotal: number;
   tax: number;
   total: number;
-  isLoading: boolean;
+  pendingRequests: number;
   error: string | null;
   hasSession: boolean;
 
@@ -56,7 +49,6 @@ function calcTotals(items: CartItem[]) {
   const total = Math.round((subtotal + tax) * 100) / 100;
   return { subtotal, tax, total };
 }
-
 
 const getHeaders = () => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -82,92 +74,62 @@ export const useCartStore = create<CartState>((set, get) => ({
   subtotal: 0,
   tax: 0,
   total: 0,
-  isLoading: false,
+  pendingRequests: 0,
   error: null,
-  hasSession: false,
+  hasSession: typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false,
 
   fetchCart: async () => {
-    set({ isLoading: true, error: null });
+    if (!get().hasSession) return;
+    
+    set(state => ({ pendingRequests: state.pendingRequests + 1, error: null }));
     try {
-      const response = await fetch('/api/cart', { credentials: 'include', cache: 'no-store', headers: getBasicHeaders() });
+      const response = await fetch('/api/cart', {
+        headers: getBasicHeaders(),
+        credentials: 'include'
+      });
       const data = await response.json();
-
-      // 401 = no session cookie, operate in local mode silently
-      if (response.status === 401) {
-        set({ isLoading: false, hasSession: false });
+      
+      if (!data.success) {
+        if (response.status !== 404) throw new Error(data.error);
+        set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1) }));
         return;
       }
 
-      if (!data.success) throw new Error(data.error ?? 'Failed to fetch cart');
-
-      set({
-        cartId: data.data.id,
-        items: data.data.items,
-        subtotal: data.data.subtotal,
-        tax: data.data.tax,
-        total: data.data.total,
-        isLoading: false,
-        hasSession: true,
+      set(state => {
+        const remaining = Math.max(0, state.pendingRequests - 1);
+        if (remaining === 0) {
+          return {
+            cartId: data.data.id,
+            items: data.data.items,
+            subtotal: data.data.subtotal,
+            tax: data.data.tax,
+            total: data.data.total,
+            pendingRequests: 0,
+          };
+        }
+        return { pendingRequests: remaining };
       });
-    } catch {
-      // On any failure, fall back to local mode silently
-      set({ isLoading: false, hasSession: false });
+    } catch (error) {
+      set(state => ({ 
+        pendingRequests: Math.max(0, state.pendingRequests - 1),
+        error: error instanceof Error ? error.message : 'Failed to fetch cart' 
+      }));
     }
   },
 
   addItem: async (menuItemId, quantity, modifierIds = [], notes, itemMeta) => {
-    if (get().isLoading) return;
     const { hasSession, items } = get();
+    const existing = items.find(i => i.menuItemId === menuItemId && i.modifiers.length === modifierIds.length);
 
-    // ── LOCAL MODE (no session / demo menu) ─────────────────────────────
+    if (existing) {
+      return get().updateItem(existing.id, existing.quantity + quantity, notes);
+    }
+
     if (!hasSession) {
       const price = itemMeta?.price ?? 0;
       const name = itemMeta?.name ?? 'Item';
-      const existing = items.find(i => i.menuItemId === menuItemId);
-
-      let newItems: CartItem[];
-      if (existing) {
-        newItems = items.map(i =>
-          i.menuItemId === menuItemId
-            ? { ...i, quantity: i.quantity + quantity, lineTotal: (i.quantity + quantity) * i.unitPrice }
-            : i
-        );
-      } else {
-        const newItem: CartItem = {
-          id: `local-${Date.now()}`,
-          menuItemId,
-          menuItemName: name,
-          quantity,
-          unitPrice: price,
-          notes: notes ?? null,
-          isAvailable: true,
-          modifiers: [],
-          lineTotal: price * quantity,
-        };
-        newItems = [...items, newItem];
-      }
-
-      set({ items: newItems, ...calcTotals(newItems) });
-      return;
-    }
-
-    // ── SERVER MODE (real QR session) ────────────────────────────────────
-    set({ isLoading: true, error: null });
-    
-    // OPTIMISTIC UI: Instantly update the cart visually before network request finishes
-    const price = itemMeta?.price ?? 0;
-    const name = itemMeta?.name ?? 'Item';
-    const existing = items.find(i => i.menuItemId === menuItemId);
-    let optimisticItems;
-    if (existing) {
-      optimisticItems = items.map(i =>
-        i.menuItemId === menuItemId
-          ? { ...i, quantity: i.quantity + quantity, lineTotal: (i.quantity + quantity) * i.unitPrice }
-          : i
-      );
-    } else {
-      optimisticItems = [...items, {
-        id: `temp-${Date.now()}`,
+      const newItem: CartItem = {
+        id: `local-${Date.now()}`,
         menuItemId,
         menuItemName: name,
         quantity,
@@ -176,8 +138,27 @@ export const useCartStore = create<CartState>((set, get) => ({
         isAvailable: true,
         modifiers: [],
         lineTotal: price * quantity,
-      }];
+      };
+      const newItems = [...items, newItem];
+      set({ items: newItems, ...calcTotals(newItems) });
+      return;
     }
+
+    set(state => ({ pendingRequests: state.pendingRequests + 1, error: null }));
+    
+    const price = itemMeta?.price ?? 0;
+    const name = itemMeta?.name ?? 'Item';
+    const optimisticItems = [...items, {
+      id: `temp-${Date.now()}`,
+      menuItemId,
+      menuItemName: name,
+      quantity,
+      unitPrice: price,
+      notes: notes ?? null,
+      isAvailable: true,
+      modifiers: [],
+      lineTotal: price * quantity,
+    }];
     set({ items: optimisticItems, ...calcTotals(optimisticItems) });
 
     try {
@@ -191,54 +172,48 @@ export const useCartStore = create<CartState>((set, get) => ({
       const data = await response.json();
       if (!data.success) throw new Error(data.error ?? 'Failed to add item');
 
-      // Use the returned cart directly instead of a follow-up GET request
-      set({
-        cartId: data.data.id,
-        items: data.data.items,
-        subtotal: data.data.subtotal,
-        tax: data.data.tax,
-        total: data.data.total,
-        isLoading: false,
+      set(state => {
+        const remaining = Math.max(0, state.pendingRequests - 1);
+        if (remaining === 0) {
+          return {
+            cartId: data.data.id,
+            items: data.data.items,
+            subtotal: data.data.subtotal,
+            tax: data.data.tax,
+            total: data.data.total,
+            pendingRequests: 0,
+          };
+        }
+        return { pendingRequests: remaining };
       });
     } catch (error) {
-      // Revert optimistic update on failure
-      console.error("[CART_STORE] POST /api/cart failed:", error);
-      if (typeof window !== 'undefined') window.alert("Network Error: " + (error instanceof Error ? error.message : "Failed to add item to server. Please try again."));
-      if (typeof window !== 'undefined' && (window as any).toast) {
-        (window as any).toast.error(error instanceof Error ? error.message : "Network error");
-      }
-      set({
-        items, // back to original
+      set(state => ({
+        items, // revert
         ...calcTotals(items),
-        isLoading: false,
+        pendingRequests: Math.max(0, state.pendingRequests - 1),
         error: error instanceof Error ? error.message : 'Failed to add item',
-      });
+      }));
     }
   },
 
   updateItem: async (itemId, quantity, notes) => {
     const { hasSession, items } = get();
 
-    // ── LOCAL MODE ───────────────────────────────────────────────────────
     if (!hasSession) {
       let newItems: CartItem[];
       if (quantity <= 0) {
         newItems = items.filter(i => i.id !== itemId);
       } else {
         newItems = items.map(i =>
-          i.id === itemId
-            ? { ...i, quantity, notes: notes ?? i.notes, lineTotal: quantity * i.unitPrice }
-            : i
+          i.id === itemId ? { ...i, quantity, lineTotal: quantity * (i.unitPrice + i.modifiers.reduce((s, m) => s + m.price, 0)) } : i
         );
       }
       set({ items: newItems, ...calcTotals(newItems) });
       return;
     }
 
-    // ── SERVER MODE ──────────────────────────────────────────────────────
-    set({ isLoading: true, error: null });
+    set(state => ({ pendingRequests: state.pendingRequests + 1, error: null }));
 
-    // OPTIMISTIC UI:
     const originalItems = items;
     const optimisticItems = items.map(i => 
       i.id === itemId ? { ...i, quantity, lineTotal: quantity * (i.unitPrice + i.modifiers.reduce((s, m) => s + m.price, 0)) } : i
@@ -256,38 +231,40 @@ export const useCartStore = create<CartState>((set, get) => ({
       const data = await response.json();
       if (!data.success) throw new Error(data.error ?? 'Failed to update item');
 
-      set({
-        items: data.data.items,
-        subtotal: data.data.subtotal,
-        tax: data.data.tax,
-        total: data.data.total,
-        isLoading: false,
+      set(state => {
+        const remaining = Math.max(0, state.pendingRequests - 1);
+        if (remaining === 0) {
+          return {
+            items: data.data.items,
+            subtotal: data.data.subtotal,
+            tax: data.data.tax,
+            total: data.data.total,
+            pendingRequests: 0,
+          };
+        }
+        return { pendingRequests: remaining };
       });
     } catch (error) {
-      set({
+      set(state => ({
         items: originalItems,
         ...calcTotals(originalItems),
-        isLoading: false,
+        pendingRequests: Math.max(0, state.pendingRequests - 1),
         error: error instanceof Error ? error.message : 'Failed to update item',
-      });
+      }));
     }
   },
 
   removeItem: async (itemId) => {
-    if (get().isLoading) return;
     const { hasSession, items } = get();
 
-    // ── LOCAL MODE ───────────────────────────────────────────────────────
     if (!hasSession) {
       const newItems = items.filter(i => i.id !== itemId);
       set({ items: newItems, ...calcTotals(newItems) });
       return;
     }
 
-    // ── SERVER MODE ──────────────────────────────────────────────────────
-    set({ isLoading: true, error: null });
+    set(state => ({ pendingRequests: state.pendingRequests + 1, error: null }));
 
-    // OPTIMISTIC UI:
     const originalItems = items;
     const optimisticItems = items.filter(i => i.id !== itemId);
     set({ items: optimisticItems, ...calcTotals(optimisticItems) });
@@ -302,20 +279,26 @@ export const useCartStore = create<CartState>((set, get) => ({
       const data = await response.json();
       if (!data.success) throw new Error(data.error ?? 'Failed to remove item');
 
-      set({
-        items: data.data.items,
-        subtotal: data.data.subtotal,
-        tax: data.data.tax,
-        total: data.data.total,
-        isLoading: false,
+      set(state => {
+        const remaining = Math.max(0, state.pendingRequests - 1);
+        if (remaining === 0) {
+          return {
+            items: data.data.items,
+            subtotal: data.data.subtotal,
+            tax: data.data.tax,
+            total: data.data.total,
+            pendingRequests: 0,
+          };
+        }
+        return { pendingRequests: remaining };
       });
     } catch (error) {
-      set({
+      set(state => ({
         items: originalItems,
         ...calcTotals(originalItems),
-        isLoading: false,
+        pendingRequests: Math.max(0, state.pendingRequests - 1),
         error: error instanceof Error ? error.message : 'Failed to remove item',
-      });
+      }));
     }
   },
 
