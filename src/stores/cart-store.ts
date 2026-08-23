@@ -32,8 +32,7 @@ interface CartState {
   total: number;
   pendingRequests: number;
   error: string | null;
-  hasSession: boolean;
-
+  
   // Actions
   fetchCart: () => Promise<void>;
   addItem: (menuItemId: string, quantity: number, modifierIds?: string[], notes?: string, itemMeta?: { name: string; price: number }) => Promise<void>;
@@ -76,10 +75,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   total: 0,
   pendingRequests: 0,
   error: null,
-  hasSession: typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false,
-
+  
   fetchCart: async () => {
-    if (!get().hasSession) return;
+    if (!(typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false)) return;
     
     set(state => ({ pendingRequests: state.pendingRequests + 1, error: null }));
     try {
@@ -118,7 +116,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   addItem: async (menuItemId, quantity, modifierIds = [], notes, itemMeta) => {
-    const { hasSession, items } = get();
+    const { items } = get();
+    const hasSession = typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false;
     const existing = items.find(i => i.menuItemId === menuItemId && i.modifiers.length === modifierIds.length);
 
     if (existing) {
@@ -197,7 +196,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateItem: async (itemId, quantity, notes) => {
-    const { hasSession, items } = get();
+    const { items } = get();
+    const hasSession = typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false;
 
     if (!hasSession) {
       let newItems: CartItem[];
@@ -255,7 +255,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   removeItem: async (itemId) => {
-    const { hasSession, items } = get();
+    const { items } = get();
+    const hasSession = typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false;
 
     if (!hasSession) {
       const newItems = items.filter(i => i.id !== itemId);
