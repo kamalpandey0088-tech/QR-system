@@ -39,9 +39,39 @@ export default function InvoicePage({ params }: { params: { orderId: string } })
           <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/30">
             <CheckCircle2 className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-black text-gray-900">{order.paymentMethod === 'CASH' ? 'Order Confirmed!' : 'Payment Successful'}</h1>
+          <h1 className="text-3xl font-black text-gray-900">{order.paymentMethod === 'CASH' ? 'Order Confirmed!' : (order.paymentMethod === 'UPI' && !order.paidAt ? 'Payment Required' : 'Payment Successful')}</h1>
           <p className="text-gray-500 font-bold mt-2 text-lg">Your food is being prepared! {order.paymentMethod === 'CASH' && 'You can pay the waiter at the end of your meal.'}</p>
         </motion.div>
+
+        
+        {order.paymentMethod === 'CASH' && (
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white rounded-[2rem] p-6 mb-6 shadow-sm border-2 border-gray-200 text-center">
+            <h3 className="font-bold text-gray-900 mb-2 text-lg">Pay at Counter / Waiter</h3>
+            <p className="text-gray-500 text-sm">Please pay your waiter or at the billing counter after your meal is finished.</p>
+          </motion.div>
+        )}
+
+        {/* UPI Payment Block */}
+        {order.paymentMethod === 'UPI' && !order.paidAt && (
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white rounded-[2rem] p-6 mb-6 shadow-sm border-2 border-indigo-500 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 bg-indigo-500 text-white text-[11px] uppercase tracking-widest font-black py-1">Action Required</div>
+            <h3 className="font-bold text-gray-900 mt-4 mb-2 text-lg">Pay via UPI to confirm order</h3>
+            <p className="text-gray-500 text-sm mb-6">Scan with any UPI app (GPay, PhonePe, Paytm)</p>
+            
+            <div className="bg-gray-50 p-4 rounded-2xl inline-block mb-4 border border-gray-200">
+              <QRCodeSVG 
+                value={`upi://pay?pa=${config.upiId || 'restaurant@upi'}&pn=${encodeURIComponent(config.restaurantName || 'Restaurant')}&am=${order.total}&cu=INR`} 
+                size={180} 
+                level="H"
+              />
+            </div>
+            
+            <a href={`upi://pay?pa=${config.upiId || 'restaurant@upi'}&pn=${encodeURIComponent(config.restaurantName || 'Restaurant')}&am=${order.total}&cu=INR`} 
+               className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-200 active:scale-95">
+              Tap here to Pay on this Phone
+            </a>
+          </motion.div>
+        )}
 
         {/* Digital Invoice Ticket */}
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="bg-white rounded-[2rem] p-8 shadow-2xl shadow-gray-200/50 relative overflow-hidden">
@@ -91,7 +121,7 @@ export default function InvoicePage({ params }: { params: { orderId: string } })
               <p>₹{Number(order.tax) / 2}</p>
             </div>
             <div className="flex justify-between text-xl font-black text-gray-900 pt-4 mt-2 border-t border-gray-100">
-              <p>TOTAL PAID</p>
+              <p>{(order.paymentMethod === 'UPI' && !order.paidAt) || order.paymentMethod === 'CASH' ? 'TOTAL DUE' : 'TOTAL PAID'}</p>
               <p>₹{Number(order.total)}</p>
             </div>
             <div className="text-center text-xs font-bold text-gray-400 mt-2 uppercase tracking-widest">
