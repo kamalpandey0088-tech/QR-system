@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db/prisma';
 import CustomerMenu from '@/components/ui/CustomerMenu';
 import SessionInitializer from './SessionInitializer';
-import { createCustomerSession } from '@/lib/auth/session';
+import { createCustomerSession, getSessionFromRequest } from '@/lib/auth/session';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -39,7 +40,20 @@ export default async function MenuPage({
         }
       }
     }),
-    createCustomerSession(tenantId, table)
+    (async () => {
+      const cookieStore = cookies();
+      const token = cookieStore.get('customer_session')?.value;
+      if (token) {
+        const existing = await prisma.customerSession.findUnique({ where: { sessionToken: token } });
+        if (existing && existing.tenantId === tenantId && new Date() < existing.expiresAt) {
+          if (table && existing.tableNumber !== table) {
+            await prisma.customerSession.update({ where: { id: existing.id }, data: { tableNumber: table } });
+          }
+          return { sessionToken: token, sessionId: existing.id };
+        }
+      }
+      return createCustomerSession(tenantId, table);
+    })()
   ]);
 
   if (!tenant) return <div>Restaurant not found</div>;
