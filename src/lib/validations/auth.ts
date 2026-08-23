@@ -15,8 +15,9 @@ export const loginSchema = z.object({
     .transform((v) => v.toLowerCase().trim()),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password too long'),
+    .min(5, 'Password too short')
+    .max(128, 'Password too long')
+    .transform((v) => v.trim()),
 });
 
 /** Signup request - strict validation for all fields */
