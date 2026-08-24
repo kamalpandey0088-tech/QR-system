@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import CustomerMenu from '@/components/ui/CustomerMenu';
 import SessionInitializer from './SessionInitializer';
 import { createCustomerSession, getSessionFromRequest } from '@/lib/auth/session';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -15,13 +15,21 @@ export default async function MenuPage({
   const table = typeof searchParams.table === 'string' ? searchParams.table : '1';
   let tenantId = typeof searchParams.tenant === 'string' ? searchParams.tenant : null;
 
-  // For seamless demo testing, if no tenant provided, use the first active tenant
+  // Domain-based routing
   if (!tenantId) {
-    const defaultTenant = await prisma.tenant.findFirst({ where: { isActive: true } });
-    if (!defaultTenant) {
-      return <div className="p-8 text-center font-bold text-red-500">No active restaurant found. Please run seed script.</div>;
+    const host = headers().get('host') || '';
+    // Look up by exact domain first
+    let dbTenant = await prisma.tenant.findFirst({ where: { domain: host, isActive: true } });
+    
+    // Fallback: If no domain matches (e.g. testing on vercel app), just grab the first active tenant
+    if (!dbTenant) {
+      dbTenant = await prisma.tenant.findFirst({ where: { isActive: true } });
     }
-    tenantId = defaultTenant.id;
+    
+    if (!dbTenant) {
+      return <div className="p-8 text-center font-bold text-red-500">No active restaurant found. Please check database.</div>;
+    }
+    tenantId = dbTenant.id;
   }
 
   // 1. Fetch ALL data concurrently for maximum speed (4x faster)
