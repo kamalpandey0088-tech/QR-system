@@ -27,7 +27,7 @@ export async function GET() {
     // Fetch month's orders (just need totals)
     const monthOrders = await prisma.order.findMany({
       where: { tenantId, createdAt: { gte: startOfMonth } },
-      select: { total: true }
+      select: { total: true, status: true, paidAt: true }
     });
 
     // Active orders count
@@ -39,8 +39,9 @@ export async function GET() {
     });
 
     // Calculations
-    const todayRevenue = todayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-    const monthRevenue = monthOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+    const isPaid = (o: any) => ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o.status) && o.paidAt !== null;
+    const todayRevenue = todayOrders.filter(isPaid).reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+    const monthRevenue = monthOrders.filter(isPaid).reduce((sum, o) => sum + (Number(o.total) || 0), 0);
     const todayOrderCount = todayOrders.length;
     const monthOrderCount = monthOrders.length;
 
@@ -74,7 +75,7 @@ export async function GET() {
     // Last 7 days revenue (Sparkline Data)
     const last7DaysOrders = await prisma.order.findMany({
       where: { tenantId, createdAt: { gte: sevenDaysAgo } },
-      select: { createdAt: true, total: true }
+      select: { createdAt: true, total: true, status: true, paidAt: true }
     });
 
     const last7DaysMap = new Map<string, number>();
@@ -85,6 +86,7 @@ export async function GET() {
     }
 
     last7DaysOrders.forEach(o => {
+      if (!isPaid(o)) return;
       const dateKey = new Date(o.createdAt).toISOString().split('T')[0]!;
       if (last7DaysMap.has(dateKey)) {
         last7DaysMap.set(dateKey, last7DaysMap.get(dateKey)! + Number(o.total || 0));

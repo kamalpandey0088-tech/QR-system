@@ -12,6 +12,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { loginSchema } from '@/lib/validations/auth';
+import { rateLimiter } from '@/lib/security/rate-limiter';
 
 export const authOptions = {
   providers: [
@@ -30,6 +31,12 @@ export const authOptions = {
         }
 
         const { email, password } = parsed.data;
+
+        // Rate limit brute force attempts on the email
+        const rateLimit = rateLimiter.check(email, 'login');
+        if (!rateLimit.allowed) {
+          throw new Error("Too many login attempts. Please try again later.");
+        }
 
         // Find user by email - only active users can authenticate
         const user = await prisma.user.findUnique({

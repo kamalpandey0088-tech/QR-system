@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     if (!session) throw new AppError('Session required.', 401);
 
     const body = await request.json();
-    const { paymentMethod, tableNumber } = createOrderSchema.parse(body);
+    const { paymentMethod } = createOrderSchema.parse(body);
 
     const cart = await prisma.cart.findUnique({
       where: { sessionId: session.id },
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = nanoid(32);
     
     // Completely free "cash on counter" alternative route
-    const initialStatus = paymentMethod === 'CASH' ? 'PAID' : 'PENDING';
+    const initialStatus = 'PENDING';
 
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
           subtotal: totals.subtotal,
           tax: totals.tax,
           total: totals.total,
-          tableNumber: tableNumber ?? session.tableNumber,
+          tableNumber: session.tableNumber,
           paymentMethod,
           idempotencyKey,
           paidAt: null, // Cash is unpaid until collected by staff

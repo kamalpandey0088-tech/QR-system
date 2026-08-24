@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createCustomerSession, createSessionCookieHeader } from '@/lib/auth/session';
-import { handleApiError, createCorrelationId } from '@/lib/errors';
+import { handleApiError, createCorrelationId, AppError } from '@/lib/errors';
+import { rateLimiter } from '@/lib/security/rate-limiter';
 
 const createSessionSchema = z.object({
   tenantId: z.string().uuid('Invalid tenant ID'),
@@ -10,6 +11,15 @@ const createSessionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'unknown';
+    const rateLimit = rateLimiter.check(ip, 'api');
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+      );
+    }
+
     const body = await request.json();
     const { tenantId, tableNumber } = createSessionSchema.parse(body);
     
