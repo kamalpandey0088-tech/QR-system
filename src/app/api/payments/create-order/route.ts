@@ -3,6 +3,7 @@ import Razorpay from 'razorpay';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, createCorrelationId, AppError } from '@/lib/errors';
+import { rateLimiter } from '@/lib/security/rate-limiter';
 import { getSessionFromRequest } from '@/lib/auth/session';
 
 const createPaymentSchema = z.object({
@@ -21,6 +22,16 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSessionFromRequest(request);
     if (!session) throw new AppError('Session required', 401);
+
+    
+    const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'unknown';
+    const rateLimit = rateLimiter.check(ip, 'api');
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+      );
+    }
 
     const body = await request.json();
     const { orderId } = createPaymentSchema.parse(body);

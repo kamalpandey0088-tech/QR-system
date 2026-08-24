@@ -20,7 +20,7 @@ export async function POST(
 
     // Fetch order and verify tenant ownership
     const order = await prisma.order.findFirst({
-      where: { id: orderId },
+      where: { id: orderId, tenantId: user.tenantId ?? undefined },
       select: {
         id: true,
         tenantId: true,
@@ -60,6 +60,10 @@ export async function POST(
           provider: 'razorpay',
           transactionId: { startsWith: 'pay_' },
           processed: true,
+          // Extract the payment ID from the webhook that actually processed THIS order's Razorpay Order ID
+          // The Razorpay webhook payload contains payload.payment.entity.order_id
+          // We can find the log that matches our order's paymentTransactionId (which stores the Razorpay Order ID)
+          payload: { path: ['payload', 'payment', 'entity', 'order_id'], equals: order.paymentTransactionId }
         },
         orderBy: { createdAt: 'desc' },
       });

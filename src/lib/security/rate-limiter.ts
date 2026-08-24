@@ -1,7 +1,14 @@
 /**
  * @fileoverview In-memory token bucket rate limiter.
  * @security Prevents brute force attacks on auth endpoints.
- * Upgradeable to Redis for multi-instance deployments.
+ * 
+ * IMPORTANT PRODUCTION NOTE:
+ * This rate limiter is currently IN-MEMORY. It works well for a single-instance Node server.
+ * However, since Vercel utilizes serverless functions (meaning multiple isolated instances spin up and down), 
+ * this in-memory store will NOT reliably enforce limits globally across all instances.
+ * To achieve true production-grade protection on Vercel, this must be migrated to a shared store 
+ * (like Vercel KV or Upstash Redis). The `RATE_LIMIT_STORE` environment variable is anticipated 
+ * for this future upgrade, but currently unused.
  */
 
 interface RateLimitEntry {
