@@ -256,7 +256,7 @@ model Order {
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
-  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   session CustomerSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   items   OrderItem[]
   refunds RefundLog[]
@@ -281,7 +281,7 @@ model OrderItem {
   notes      String?
 
   order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   modifiers OrderItemModifier[]
 
   @@index([tenantId, orderId])
@@ -315,7 +315,7 @@ model PaymentWebhookLog {
   processed     Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
 
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   @@unique([provider, transactionId, eventType])
   @@index([transactionId])
@@ -335,7 +335,7 @@ model RefundLog {
   createdAt           DateTime @default(now()) @map("created_at")
 
   order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   @@index([tenantId])
   @@index([orderId])
