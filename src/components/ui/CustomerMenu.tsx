@@ -23,7 +23,7 @@ function SteamParticle({ delay = 0, x = 50 }: { delay?: number; x?: number }) {
       transition={{
         duration: 3,
         delay,
-        repeat: Infinity,
+        repeat: 0 /* Disabled for mobile lag fix */,
         ease: 'easeOut',
         repeatDelay: Math.random() * 1,
       }}
@@ -68,11 +68,7 @@ const FOOD_THEMES: Record<string, {
           ))}
         </div>
         {/* Heat shimmer */}
-        <motion.div
-          animate={{ opacity: [0.3, 0.7, 0.3], scaleX: [1, 1.05, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute inset-0 bg-gradient-to-t from-orange-500/0 via-orange-400/10 to-orange-300/0 rounded-xl"
-        />
+        <div className="absolute inset-0 bg-gradient-to-t from-orange-500/0 via-orange-400/10 to-orange-300/0 rounded-xl opacity-50" />
       </div>
     ),
   },
@@ -99,7 +95,7 @@ const FOOD_THEMES: Record<string, {
         {/* Hot honey drizzle */}
         <div className="absolute bottom-[88px] w-24 h-2">
           {[20,40,60].map((dx, i) => (
-            <motion.div key={i} animate={{ scaleY: [1, 1.3, 1] }} transition={{ duration: 1.5, delay: i * 0.3, repeat: Infinity }}
+            <motion.div key={i} animate={{ scaleY: [1, 1.3, 1] }} transition={{ duration: 1.5, delay: i * 0.3, repeat: 0 /* Disabled for mobile lag fix */ }}
               className="absolute h-6 w-1 bg-gradient-to-b from-amber-500 to-orange-600 rounded-full opacity-80" style={{ left: `${dx}%`, bottom: 0 }} />
           ))}
         </div>
@@ -122,7 +118,7 @@ const FOOD_THEMES: Record<string, {
           {[10,30,50,70,85].map((bx, i) => (
             <motion.div key={i}
               animate={{ y: ['100%', '-10%'], opacity: [0.8, 0] }}
-              transition={{ duration: 2 + i * 0.4, delay: i * 0.3, repeat: Infinity }}
+              transition={{ duration: 2 + i * 0.4, delay: i * 0.3, repeat: 0 /* Disabled for mobile lag fix */ }}
               className="absolute w-1 h-1 bg-white/30 rounded-full" style={{ left: `${bx}%`, bottom: 0 }}
             />
           ))}
@@ -140,7 +136,7 @@ const FOOD_THEMES: Record<string, {
         {[25, 60, 80].map((dx, i) => (
           <motion.div key={i}
             animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 3 + i, delay: i, repeat: Infinity }}
+            transition={{ duration: 3 + i, delay: i, repeat: 0 /* Disabled for mobile lag fix */ }}
             className="absolute w-1 h-2 bg-white/20 rounded-full blur-[0.5px]" style={{ left: `calc(50% - 2.5rem + ${dx/100 * 5}rem)`, bottom: '2.5rem' }}
           />
         ))}
@@ -227,7 +223,7 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
         {Array.from({ length: 12 }).map((_, i) => (
           <motion.div key={i}
             animate={{ opacity: [0.2, 0.8, 0.2], scale: [0.8, 1.2, 0.8] }}
-            transition={{ duration: 2 + i * 0.3, delay: i * 0.2, repeat: Infinity }}
+            transition={{ duration: 2 + i * 0.3, delay: i * 0.2, repeat: 0 /* Disabled for mobile lag fix */ }}
             className="absolute w-1 h-1 bg-white/30 rounded-full"
             style={{ left: `${(i * 37 + 10) % 90}%`, top: `${(i * 23 + 5) % 80}%` }}
           />
@@ -236,7 +232,7 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
         {/* Radial ambient glow from food */}
         <motion.div
           animate={{ opacity: [0.4, 0.7, 0.4], scale: [0.9, 1.1, 0.9] }}
-          transition={{ duration: 3, repeat: Infinity }}
+          transition={{ duration: 3, repeat: 0 /* Disabled for mobile lag fix */ }}
           className="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-32 rounded-full blur-3xl"
           style={{ background: theme.glow }}
         />
@@ -260,7 +256,7 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
           <div className="absolute top-4 left-4 z-20" style={{ transform: 'translateZ(50px)' }}>
             <motion.div
               animate={{ y: [0, -3, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2, repeat: 0 /* Disabled for mobile lag fix */ }}
               className="px-3 py-1.5 rounded-full text-[11px] font-black tracking-wide bg-white/15 backdrop-blur-md border border-white/20 text-white shadow-lg"
             >
               {theme.badge}
@@ -306,7 +302,7 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
           {/* Shimmer */}
           <motion.div
             animate={{ x: ['-100%', '200%'] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+            transition={{ duration: 2, repeat: 0 /* Disabled for mobile lag fix */, repeatDelay: 1 }}
             className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12 pointer-events-none"
           />
           <Flame className="w-5 h-5 text-orange-500" />
@@ -368,12 +364,12 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.25, 0.15] }}
-          transition={{ duration: 8, repeat: Infinity }}
+          transition={{ duration: 8, repeat: 0 /* Disabled for mobile lag fix */ }}
           className="absolute -top-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full blur-[120px]"
         />
         <motion.div
           animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.2, 0.1] }}
-          transition={{ duration: 10, repeat: Infinity, delay: 2 }}
+          transition={{ duration: 10, repeat: 0 /* Disabled for mobile lag fix */, delay: 2 }}
           className="absolute -bottom-32 -right-32 w-96 h-96 bg-orange-600 rounded-full blur-[120px]"
         />
       </div>
@@ -456,7 +452,7 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
               {/* Shimmer sweep */}
               <motion.div
                 animate={{ x: ['-100%', '200%'] }}
-                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2 }}
+                transition={{ duration: 2.5, repeat: 0 /* Disabled for mobile lag fix */, repeatDelay: 2 }}
                 className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-12 pointer-events-none"
               />
               <div className="flex items-center gap-4">
