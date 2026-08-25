@@ -95,6 +95,20 @@ export async function POST(request: NextRequest) {
     });
     if (!category) throw new AppError('Category not found', 404);
 
+    // Validate that all provided modifier IDs belong to the caller's tenant
+    if (data.modifierIds && data.modifierIds.length > 0) {
+      const validModifiers = await prisma.modifier.findMany({
+        where: {
+          id: { in: data.modifierIds },
+          tenantId: user.tenantId,
+        },
+        select: { id: true },
+      });
+      if (validModifiers.length !== data.modifierIds.length) {
+        throw new AppError('One or more invalid modifiers provided. Modifiers must belong to your restaurant.', 400);
+      }
+    }
+
     const menuItem = await prisma.menuItem.create({
       data: {
         tenantId: user.tenantId,
