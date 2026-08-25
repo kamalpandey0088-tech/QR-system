@@ -49,16 +49,16 @@ export async function PUT(request: NextRequest) {
       try {
          menuItem = await validateItemAvailability(item.menuItemId, session.tenantId);
       } catch(e) {
-         warnings.push({ itemId: item.menuItemId, reason: e.message || 'Item is unavailable' });
+         warnings.push({ itemId: item.menuItemId, reason: (e instanceof Error ? e.message : 'Item is unavailable') });
          continue; // skip invalid items
       }
 
       const modifierIds = item.modifiers ? item.modifiers.map((m: any) => m.id) : [];
-      let modifiers = [];
+      let modifiers: any[] = [];
       try {
          modifiers = await validateModifiers(modifierIds, session.tenantId);
       } catch(e) {
-         warnings.push({ itemId: item.menuItemId, reason: e.message || 'One or more modifiers are unavailable' });
+         warnings.push({ itemId: item.menuItemId, reason: (e instanceof Error ? e.message : 'One or more modifiers are unavailable') });
       }
 
       await prisma.cartItem.create({
