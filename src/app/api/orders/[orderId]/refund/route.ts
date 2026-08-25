@@ -34,7 +34,31 @@ export async function POST(
     if (!order) throw new AppError('Order not found', 404);
     await requireTenantAccess(order.tenantId);
 
-    // Atomic Claim to prevent double-refund race conditions
+    // 1. Validation BEFORE the atomic claim
+    const refundAmount = amount ?? Number(order.total);
+    if (refundAmount > Number(order.total)) {
+      throw new AppError('Refund amount exceeds order total', 400);
+    }
+
+    // 2. Pre-fetch webhook log if RAZORPAY, so we can fail early BEFORE the claim
+    let webhookLog = null;
+    if (order.paymentMethod === 'RAZORPAY' && order.paymentTransactionId) {
+      webhookLog = await prisma.paymentWebhookLog.findFirst({
+        where: {
+          provider: 'razorpay',
+          transactionId: { startsWith: 'pay_' },
+          processed: true,
+          payload: { path: ['payload', 'payment', 'entity', 'order_id'], equals: order.paymentTransactionId }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!webhookLog) {
+        throw new AppError('Payment webhook log not found. Cannot process refund automatically.', 400);
+      }
+    }
+
+    // 3. Atomic Claim to prevent double-refund race conditions
     const claim = await prisma.order.updateMany({
       where: {
         id: orderId,
@@ -49,45 +73,33 @@ export async function POST(
       throw new AppError('Order already refunded or in wrong state for refund', 409);
     }
 
-    const refundAmount = amount ?? Number(order.total);
-    if (refundAmount > Number(order.total)) {
-      throw new AppError('Refund amount exceeds order total', 400);
-    }
-
     let refundTransactionId: string | null = null;
 
-    // Process refund via Razorpay if it was an online payment
-    if (order.paymentMethod === 'RAZORPAY' && order.paymentTransactionId) {
-      const keyId = process.env.RAZORPAY_KEY_ID;
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      if (!keyId || !keySecret) throw new AppError('Payment gateway not configured', 500);
+    // 4. Process refund via Razorpay
+    if (order.paymentMethod === 'RAZORPAY' && webhookLog) {
+      try {
+        const keyId = process.env.RAZORPAY_KEY_ID;
+        const keySecret = process.env.RAZORPAY_KEY_SECRET;
+        if (!keyId || !keySecret) throw new AppError('Payment gateway not configured', 500);
 
-      const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
 
-      // Find the payment ID from webhook logs
-      const webhookLog = await prisma.paymentWebhookLog.findFirst({
-        where: {
-          provider: 'razorpay',
-          transactionId: { startsWith: 'pay_' },
-          processed: true,
-          // Extract the payment ID from the webhook that actually processed THIS order's Razorpay Order ID
-          // The Razorpay webhook payload contains payload.payment.entity.order_id
-          // We can find the log that matches our order's paymentTransactionId (which stores the Razorpay Order ID)
-          payload: { path: ['payload', 'payment', 'entity', 'order_id'], equals: order.paymentTransactionId }
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (webhookLog) {
         const refund = await razorpay.payments.refund(webhookLog.transactionId, {
           amount: Math.round(refundAmount * 100), // Convert to paise
           notes: { orderId: order.id, reason },
         });
         refundTransactionId = refund.id;
+      } catch (err: any) {
+        // If Razorpay fails, we must revert the claim to avoid the stuck REFUNDED state
+        await prisma.order.update({
+          where: { id: orderId },
+          data: { status: order.status }, // revert to original status
+        });
+        throw new AppError(err.message || 'Razorpay refund failed', 500);
       }
     }
 
-    // Create refund log (status was already updated to REFUNDED in the atomic claim)
+    // 5. Create refund log
     await prisma.refundLog.create({
       data: {
         orderId,
