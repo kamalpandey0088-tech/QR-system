@@ -10,6 +10,42 @@ export default function InvoicePage({ params }: { params: { orderId: string } })
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    let interval: any;
+    if (order && order.paymentMethod === 'UPI' && !order.paidAt && order.status === 'PENDING') {
+      const expiresAt = new Date(order.createdAt).getTime() + 3 * 60 * 1000;
+      
+      interval = setInterval(() => {
+        const remaining = Math.max(0, expiresAt - Date.now());
+        setTimeLeft(remaining);
+        
+        if (remaining === 0) {
+          clearInterval(interval);
+          // Automatically cancel the order
+          fetch(`/api/orders/${order.id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'CANCELLED' })
+          }).then(() => {
+            setOrder({ ...order, status: 'CANCELLED' });
+          });
+        }
+      }, 1000);
+      
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [order]);
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+
   useEffect(() => {
     // In a real app we'd fetch from a new GET /api/orders/[orderId]
     // Let's just create that API next!
@@ -52,11 +88,17 @@ export default function InvoicePage({ params }: { params: { orderId: string } })
         )}
 
         {/* UPI Payment Block */}
-        {order.paymentMethod === 'UPI' && !order.paidAt && (
+        {order.paymentMethod === 'UPI' && !order.paidAt && order.status !== 'CANCELLED' && (
           <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white rounded-[2rem] p-6 mb-6 shadow-sm border-2 border-indigo-500 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 bg-indigo-500 text-white text-[11px] uppercase tracking-widest font-black py-1">Action Required</div>
+            <div className="absolute top-0 left-0 right-0 bg-indigo-500 text-white text-[11px] uppercase tracking-widest font-black py-1">
+              {timeLeft !== null ? `Action Required • Expires in ${formatTime(timeLeft)}` : 'Action Required'}
+            </div>
             <h3 className="font-bold text-gray-900 mt-4 mb-2 text-lg">Pay via UPI to confirm order</h3>
-            <p className="text-gray-500 text-sm mb-6">Scan with any UPI app (GPay, PhonePe, Paytm)</p>
+            <p className="text-gray-500 text-sm mb-4">Scan with any UPI app (GPay, PhonePe, Paytm)</p>
+            
+            {timeLeft !== null && timeLeft <= 60000 && (
+              <p className="text-red-500 font-black text-sm mb-4 animate-pulse">Hurry! Payment window closing soon.</p>
+            )}
             
             <div className="bg-gray-50 p-4 rounded-2xl inline-block mb-4 border border-gray-200">
               <QRCodeSVG 
@@ -70,6 +112,18 @@ export default function InvoicePage({ params }: { params: { orderId: string } })
                className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-200 active:scale-95">
               Tap here to Pay on this Phone
             </a>
+          </motion.div>
+        )}
+
+        
+        {/* Cancelled/Expired Block */}
+        {order.status === 'CANCELLED' && (
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-red-50 rounded-[2rem] p-6 mb-6 shadow-sm border-2 border-red-500 text-center">
+            <h3 className="font-bold text-red-900 mb-2 text-lg">Payment Window Expired</h3>
+            <p className="text-red-600 text-sm">This order has been cancelled due to inactivity. Please return to the menu to place a new order.</p>
+            <Link href={`/menu?table=${order.tableNumber}`} className="mt-4 inline-block bg-red-600 text-white px-6 py-2 rounded-xl font-bold">
+              Return to Menu
+            </Link>
           </motion.div>
         )}
 

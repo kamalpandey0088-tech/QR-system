@@ -44,6 +44,8 @@ enum OrderStatus {
 // ── Tenant (Cafe) ────────────────────────────────────────────
 
 model Tenant {
+  @@index([domain, isActive])
+
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
   slug        String   @unique
@@ -170,6 +172,8 @@ model MenuItemModifier {
 // ── Customer Session (QR-scan based) ─────────────────────────
 
 model CustomerSession {
+  @@index([expiresAt])
+
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid
   sessionToken String   @unique @map("session_token")
@@ -240,6 +244,8 @@ model CartItemModifier {
 // ── Orders ───────────────────────────────────────────────────
 
 model Order {
+  @@index([tenantId, status, createdAt])
+
   id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId             String      @map("tenant_id") @db.Uuid
   sessionId            String?     @map("session_id") @db.Uuid

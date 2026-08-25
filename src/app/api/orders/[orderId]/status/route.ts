@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError, createCorrelationId, AppError } from '@/lib/errors';
 import { updateOrderStatusSchema } from '@/lib/validations/order';
 import { requirePermission, requireTenantAccess } from '@/lib/auth/rbac';
+import { getSessionFromRequest } from '@/lib/auth/session';
 import { isValidUUID } from '@/lib/security/sanitize';
 import { isValidTransition } from '@/types';
 
@@ -11,17 +12,40 @@ export async function PATCH(
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const user = await requirePermission('UPDATE_ORDER_STATUS');
     const { orderId } = params;
     if (!isValidUUID(orderId)) throw new AppError('Invalid order ID', 400);
 
     const body = await request.json();
     const { status: newStatus } = updateOrderStatusSchema.parse(body);
 
+    let allowedToUpdate = false;
+    let expectedTenantId: string | undefined;
+
+    try {
+      // First, try Admin/Staff permissions
+      const user = await requirePermission('UPDATE_ORDER_STATUS');
+      allowedToUpdate = true;
+      expectedTenantId = user.tenantId ?? undefined;
+    } catch (e) {
+      // If not staff, check if it's the customer who owns the order cancelling a PENDING order
+      const customerSession = await getSessionFromRequest(request);
+      if (customerSession && newStatus === 'CANCELLED') {
+        const checkOrder = await prisma.order.findFirst({ where: { id: orderId }});
+        if (checkOrder && checkOrder.sessionId === customerSession.id && checkOrder.status === 'PENDING') {
+          allowedToUpdate = true;
+          expectedTenantId = checkOrder.tenantId;
+        }
+      }
+    }
+
+    if (!allowedToUpdate) {
+      throw new AppError('Unauthorized to update this order status', 403);
+    }
+
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        tenantId: user.tenantId ?? undefined,
+        tenantId: expectedTenantId,
       },
       select: { id: true, status: true, tenantId: true },
     });
