@@ -39,23 +39,27 @@ export async function PUT(request: NextRequest) {
     // Delete existing items to replace them with the sync state
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
 
+    const warnings: Array<{ itemId?: string, reason: string }> = [];
+
     // Insert new items
     for (const item of items) {
       if (item.quantity <= 0) continue;
       
-      // Bypass validation if it fails just to ensure cart doesn't crash on checkout
       let menuItem;
       try {
          menuItem = await validateItemAvailability(item.menuItemId, session.tenantId);
       } catch(e) {
+         warnings.push({ itemId: item.menuItemId, reason: e.message || 'Item is unavailable' });
          continue; // skip invalid items
       }
 
       const modifierIds = item.modifiers ? item.modifiers.map((m: any) => m.id) : [];
-      let modifiers: any[] = [];
+      let modifiers = [];
       try {
          modifiers = await validateModifiers(modifierIds, session.tenantId);
-      } catch(e) {}
+      } catch(e) {
+         warnings.push({ itemId: item.menuItemId, reason: e.message || 'One or more modifiers are unavailable' });
+      }
 
       await prisma.cartItem.create({
         data: {
@@ -79,8 +83,7 @@ export async function PUT(request: NextRequest) {
     // Fetch the fresh cart state to return to UI
     const fullCart = await prisma.cart.findUnique({
       where: { id: cart.id },
-      include: {
-        items: {
+      include: { tenant: { select: { taxRate: true } }, items: {
           include: {
             menuItem: { select: { name: true, price: true, isAvailable: true } },
             modifiers: { include: { modifier: { select: { name: true, price: true } } } },
@@ -112,12 +115,13 @@ export async function PUT(request: NextRequest) {
       };
     });
 
-    const tax = Math.round(subtotal * 0.05 * 100) / 100;
+    const taxRate = fullCart?.tenant?.taxRate ? Number(fullCart.tenant.taxRate) / 100 : 0.05;
+    const tax = Math.round(subtotal * taxRate * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 
     return NextResponse.json({
       success: true,
-      data: { id: cart.id, items: formattedItems, subtotal, tax, total },
+      data: { id: cart.id, items: formattedItems, subtotal, tax, total, warnings },
       correlationId: createCorrelationId(),
     });
   } catch (error) {

@@ -34,9 +34,19 @@ export async function POST(
     if (!order) throw new AppError('Order not found', 404);
     await requireTenantAccess(order.tenantId);
 
-    // Can only refund PAID orders
-    if (order.status !== 'PAID' && order.status !== 'PREPARING') {
-      throw new AppError('Can only refund paid or preparing orders', 400);
+    // Atomic Claim to prevent double-refund race conditions
+    const claim = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        status: { in: ['PAID', 'PREPARING'] },
+      },
+      data: {
+        status: 'REFUNDED',
+      },
+    });
+
+    if (claim.count === 0) {
+      throw new AppError('Order already refunded or in wrong state for refund', 409);
     }
 
     const refundAmount = amount ?? Number(order.total);
@@ -77,23 +87,16 @@ export async function POST(
       }
     }
 
-    // Update order status and create refund log
-    await prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: orderId },
-        data: { status: 'REFUNDED' },
-      });
-
-      await tx.refundLog.create({
-        data: {
-          orderId,
-          tenantId: order.tenantId,
-          amount: refundAmount,
-          reason,
-          refundTransactionId,
-          status: refundTransactionId ? 'PROCESSED' : 'INITIATED',
-        },
-      });
+    // Create refund log (status was already updated to REFUNDED in the atomic claim)
+    await prisma.refundLog.create({
+      data: {
+        orderId,
+        tenantId: order.tenantId,
+        amount: refundAmount,
+        reason,
+        refundTransactionId,
+        status: refundTransactionId ? 'PROCESSED' : 'INITIATED',
+      },
     });
 
     return NextResponse.json({

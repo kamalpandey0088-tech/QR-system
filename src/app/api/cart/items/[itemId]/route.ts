@@ -39,8 +39,7 @@ export async function PATCH(
 
     const fullCart = await prisma.cart.findUnique({
       where: { id: cartItem.cartId },
-      include: {
-        items: {
+      include: { tenant: { select: { taxRate: true } }, items: {
           include: {
             menuItem: { select: { name: true, price: true, isAvailable: true } },
             modifiers: { include: { modifier: { select: { name: true, price: true } } } },
@@ -72,7 +71,8 @@ export async function PATCH(
       };
     });
 
-    const tax = Math.round(subtotal * 0.05 * 100) / 100;
+    const taxRate = fullCart?.tenant?.taxRate ? Number(fullCart.tenant.taxRate) / 100 : 0.05;
+    const tax = Math.round(subtotal * taxRate * 100) / 100;
     const total = subtotal + tax;
 
     return NextResponse.json({
@@ -113,8 +113,7 @@ export async function DELETE(
 
     const fullCart = await prisma.cart.findUnique({
       where: { id: cartItem.cartId },
-      include: {
-        items: {
+      include: { tenant: { select: { taxRate: true } }, items: {
           include: {
             menuItem: { select: { name: true, price: true, isAvailable: true } },
             modifiers: { include: { modifier: { select: { name: true, price: true } } } },
@@ -146,7 +145,8 @@ export async function DELETE(
       };
     });
 
-    const tax = Math.round(subtotal * 0.05 * 100) / 100;
+    const taxRate = fullCart?.tenant?.taxRate ? Number(fullCart.tenant.taxRate) / 100 : 0.05;
+    const tax = Math.round(subtotal * taxRate * 100) / 100;
     const total = subtotal + tax;
 
     return NextResponse.json({

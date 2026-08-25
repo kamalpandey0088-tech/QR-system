@@ -17,7 +17,8 @@
     "db:studio": "prisma studio",
     "ws:dev": "tsx watch src/server/ws-server.ts",
     "ws:start": "node dist/server/ws-server.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
