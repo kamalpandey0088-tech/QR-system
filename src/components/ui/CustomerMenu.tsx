@@ -113,7 +113,7 @@ const FOOD_THEMES: Record<string, {
     art: (
       <div className="relative w-full h-full flex items-center justify-center">
         {/* Glass body */}
-        <div className="absolute bottom-8 w-20 h-28 bg-gradient-to-b from-stone-800/80 to-stone-950/90 rounded-b-3xl border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.15)] overflow-hidden backdrop-blur-sm">
+        <div className="absolute bottom-8 w-20 h-28 bg-gradient-to-b from-stone-800/80 to-stone-950/90 rounded-b-3xl border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.15)] overflow-hidden ">
           {/* Nitro bubbles */}
           {[10,30,50,70,85].map((bx, i) => (
             <motion.div key={i}
@@ -257,7 +257,7 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
             <motion.div
               animate={{ y: [0, -3, 0] }}
               transition={{ duration: 2, repeat: 0 /* Disabled for mobile lag fix */ }}
-              className="px-3 py-1.5 rounded-full text-[11px] font-black tracking-wide bg-white/15 backdrop-blur-md border border-white/20 text-white shadow-lg"
+              className="px-3 py-1.5 rounded-full text-[11px] font-black tracking-wide bg-white/15  border border-white/20 text-white shadow-lg"
             >
               {theme.badge}
             </motion.div>
@@ -269,7 +269,7 @@ function DishCard({ item, onAdd }: { item: any; onAdd: (item: any) => void }) {
       </div>
 
       {/* Card Content */}
-      <div className="relative bg-slate-900/95 backdrop-blur-xl px-6 pb-6 pt-4 border-t border-white/5">
+      <div className="relative bg-slate-900/95  px-6 pb-6 pt-4 border-t border-white/5">
         {/* Stars */}
         <div className="flex gap-0.5 mb-2">
           {[1,2,3,4,5].map(s => (
@@ -419,8 +419,7 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
       <main className="relative z-10 px-5 pt-6 mx-auto max-w-md md:max-w-2xl">
         <motion.div
           key={activeCategory}
-          initial="hidden"
-          animate="visible"
+          
           variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.15 } } }}
           className="grid grid-cols-1 gap-8"
         >
@@ -485,13 +484,13 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50"
+              className="fixed inset-0 bg-black/80  z-50"
             />
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 200 }}
               className="fixed inset-x-0 bottom-0 rounded-t-[3rem] p-7 pb-12 z-50 max-h-[90vh] overflow-y-auto flex flex-col"
-              style={{ background: 'rgba(10,15,28,0.97)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none' }}
+              style={{ background: 'rgba(10,15,28,0.97)', /* backdropFilter removed for mobile perf */, border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none' }}
             >
               <div className="w-14 h-1.5 bg-white/20 rounded-full mx-auto mb-8" />
               <h2 className="text-[30px] font-black text-white mb-6">Your Order 🛍️</h2>
@@ -540,12 +539,26 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
 
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => handleCheckout('CASH')} disabled={cart.pendingRequests > 0 || isCheckingOut || cart.items.length === 0} className="flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50">
-                  {isCheckingOut ? <span className="font-black text-[15px] animate-pulse">Processing...</span> : <span className="font-black text-[15px]">Pay at Counter</span>}
+                  {isCheckingOut ? (
+  <div className="flex items-center gap-2">
+    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <span className="font-black text-[15px]">Preparing...</span>
+  </div>
+) : (
+  <span className="font-black text-[15px]">Pay at Counter</span>
+)}
                   <span className="text-[11px] opacity-60 font-bold uppercase tracking-widest">Cash / Card</span>
                 </button>
                 <button onClick={() => handleCheckout('UPI')} disabled={cart.pendingRequests > 0 || isCheckingOut || cart.items.length === 0} className="relative flex flex-col items-center justify-center gap-1.5 p-5 rounded-[1.75rem] text-white overflow-hidden active:scale-95 transition-all shadow-[0_15px_40px_rgba(74,222,128,0.35)] disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                   <QrCode className="w-7 h-7" />
-                  {isCheckingOut ? <span className="font-black text-[15px] animate-pulse">Processing...</span> : <span className="font-black text-[15px]">Scan & Pay</span>}
+                  {isCheckingOut ? (
+  <div className="flex items-center gap-2">
+    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <span className="font-black text-[15px]">Preparing to Pay...</span>
+  </div>
+) : (
+  <span className="font-black text-[15px]">Scan & Pay</span>
+)}
                   <span className="text-[11px] opacity-90 font-bold uppercase tracking-widest">Via UPI · Free</span>
                 </button>
               </div>
