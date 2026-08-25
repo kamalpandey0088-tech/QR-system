@@ -1,7 +1,7 @@
 /**
  * @fileoverview NextAuth.js v5 configuration with credentials provider.
  * @security
- * - Uses Argon2id for password hashing (GPU-resistant)
+ * - Uses bcryptjs for password hashing (GPU-resistant)
  * - JWT strategy with tenant_id and role embedded
  * - Never logs or returns password hashes
  * - Active status check prevents disabled accounts from authenticating
@@ -62,7 +62,7 @@ export const authOptions = {
           return null;
         }
 
-        // Verify password using Argon2id (GPU-resistant)
+        // Verify password using bcryptjs (GPU-resistant)
         const isValidPassword = await bcrypt.compare(password, user.passwordHash);
         if (!isValidPassword) {
           return null;

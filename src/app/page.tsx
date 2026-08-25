@@ -85,7 +85,7 @@ export default function LandingPage() {
         >
           {[
             { icon: QrCode, title: "Zero-Friction QR", desc: "No app downloads. Instant browser-based menus with direct UPI payments." },
-            { icon: ChefHat, title: "Live KDS", desc: "Real-time kitchen displays with smooth drag-and-drop workflow." },
+            { icon: ChefHat, title: "Auto-Refreshing KDS", desc: "Reliable kitchen displays with a 5-second sync and smooth drag-and-drop workflow." },
             { icon: BarChart3, title: "Deep Analytics", desc: "Track revenue, top items, and live order statuses instantly." },
           ].map((feature, i) => (
             <motion.div
