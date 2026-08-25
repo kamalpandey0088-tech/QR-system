@@ -490,7 +490,7 @@ export default function CustomerMenu({ tenantName, initialCategories, initialIte
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 200 }}
               className="fixed inset-x-0 bottom-0 rounded-t-[3rem] p-7 pb-12 z-50 max-h-[90vh] overflow-y-auto flex flex-col"
-              style={{ background: 'rgba(10,15,28,0.97)', /* backdropFilter removed for mobile perf */, border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none' }}
+              style={{ background: 'rgba(10,15,28,0.97)', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none' }}
             >
               <div className="w-14 h-1.5 bg-white/20 rounded-full mx-auto mb-8" />
               <h2 className="text-[30px] font-black text-white mb-6">Your Order 🛍️</h2>
