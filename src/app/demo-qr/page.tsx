@@ -48,7 +48,7 @@ export default function DemoQRPage() {
           
           <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Table 4</h2>
           <p className="text-gray-500 font-medium leading-relaxed mb-8">
-            Scan this real QR code with your phone camera to open the menu for Table 4!
+            Scan this real QR code, or tap the button below to open the menu directly on this device!
           </p>
           
           <Link href="/menu?table=4" className="w-full" onClick={() => setIsNavigating(true)}>
@@ -59,7 +59,7 @@ export default function DemoQRPage() {
                   Opening Menu...
                 </>
               ) : (
-                'Open Menu on Laptop'
+                'Open Menu Directly'
               )}
             </button>
           </Link>
