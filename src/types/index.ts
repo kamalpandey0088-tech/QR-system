@@ -52,7 +52,7 @@ export interface ThemeConfig {
  * Example: An order cannot go from COMPLETED back to PENDING.
  */
 export const ORDER_STATE_MACHINE: Record<string, readonly string[]> = {
-  PENDING: ['PAID', 'CANCELLED'] as const,
+  PENDING: ['PAID', 'PREPARING', 'CANCELLED'] as const,
   PAID: ['PREPARING', 'REFUNDED', 'CANCELLED'] as const,
   PREPARING: ['READY'] as const,
   READY: ['COMPLETED'] as const,
