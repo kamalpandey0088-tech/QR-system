@@ -40,7 +40,7 @@ interface CartState {
   updateItem: (itemId: string, quantity: number, notes?: string) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   clearError: () => void;
-  _syncWithServer: () => void;
+  _syncWithServer: (fallbackItems?: CartItem[]) => void;
 }
 
 /** Recalculate totals from items array */
@@ -112,7 +112,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  _syncWithServer: () => {
+  _syncWithServer: (fallbackItems?: CartItem[]) => {
     const hasSession = typeof window !== 'undefined' ? !!localStorage.getItem('customer_session_token') : false;
     if (!hasSession) return;
 
@@ -150,16 +150,24 @@ export const useCartStore = create<CartState>((set, get) => ({
           return { pendingRequests: remaining };
         });
       } catch (error) {
-        set(state => ({
-          pendingRequests: Math.max(0, state.pendingRequests - 1),
-          error: error instanceof Error ? error.message : 'Failed to sync cart',
-        }));
+        set(state => {
+          const newState: Partial<CartState> = {
+            pendingRequests: Math.max(0, state.pendingRequests - 1),
+            error: error instanceof Error ? error.message : 'Failed to sync cart',
+          };
+          if (fallbackItems) {
+            newState.items = fallbackItems;
+            Object.assign(newState, calcTotals(fallbackItems));
+          }
+          return newState;
+        });
       }
     }, 400); // 400ms debounce
   },
 
   addItem: async (menuItemId, quantity, modifierIds = [], notes, itemMeta) => {
-    const { items } = get();
+    const prevState = get();
+    const { items } = prevState;
     const existing = items.find(i => i.menuItemId === menuItemId && i.modifiers.length === modifierIds.length);
 
     if (existing) {
@@ -183,11 +191,12 @@ export const useCartStore = create<CartState>((set, get) => ({
     
     const newItems = [...items, newItem];
     set({ items: newItems, ...calcTotals(newItems) });
-    get()._syncWithServer();
+    get()._syncWithServer(prevState.items);
   },
 
   updateItem: async (itemId, quantity, notes) => {
-    const { items } = get();
+    const prevState = get();
+    const { items } = prevState;
 
     let newItems: CartItem[];
     if (quantity <= 0) {
@@ -198,14 +207,15 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
     }
     set({ items: newItems, ...calcTotals(newItems) });
-    get()._syncWithServer();
+    get()._syncWithServer(prevState.items);
   },
 
   removeItem: async (itemId) => {
-    const { items } = get();
+    const prevState = get();
+    const { items } = prevState;
     const newItems = items.filter(i => i.id !== itemId);
     set({ items: newItems, ...calcTotals(newItems) });
-    get()._syncWithServer();
+    get()._syncWithServer(prevState.items);
   },
 
   clearError: () => set({ error: null }),
