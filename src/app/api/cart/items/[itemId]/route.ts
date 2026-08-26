@@ -5,10 +5,8 @@ import { updateCartItemSchema } from '@/lib/validations/cart';
 import { getSessionFromRequest } from '@/lib/auth/session';
 import { isValidUUID } from '@/lib/security/sanitize';
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { itemId: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ itemId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionFromRequest(request);
     if (!session) throw new AppError('Session required', 401);
@@ -86,10 +84,8 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { itemId: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ itemId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionFromRequest(request);
     if (!session) throw new AppError('Session required', 401);

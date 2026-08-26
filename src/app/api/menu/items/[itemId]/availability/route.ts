@@ -5,10 +5,8 @@ import { toggleAvailabilitySchema } from '@/lib/validations/menu';
 import { requirePermission } from '@/lib/auth/rbac';
 import { isValidUUID } from '@/lib/security/sanitize';
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { itemId: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ itemId: string }> }) {
+  const params = await props.params;
   try {
     const user = await requirePermission('TOGGLE_AVAILABILITY');
     if (!user.tenantId) throw new AppError('Tenant context required', 400);

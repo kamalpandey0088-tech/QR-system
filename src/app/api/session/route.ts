@@ -11,7 +11,7 @@ const createSessionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'unknown';
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
     const rateLimit = rateLimiter.check(ip, 'api');
     if (!rateLimit.allowed) {
       return NextResponse.json(

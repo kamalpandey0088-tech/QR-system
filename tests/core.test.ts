@@ -26,13 +26,14 @@ vi.mock('../src/lib/db/prisma', () => ({
     orderItem: { groupBy: vi.fn() },
     paymentWebhookLog: { findFirst: vi.fn() },
     refundLog: { create: vi.fn() },
+    systemAlert: { count: vi.fn() },
     $transaction: vi.fn()
   }
 }));
 
 // We need the ACTUAL calculateCartTotal logic to run, not mock it, so the tax test passes
 vi.mock('../src/lib/db/server-pricing', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     calculateCartTotal: vi.fn().mockImplementation(actual.calculateCartTotal)
@@ -114,7 +115,7 @@ describe('Refund Concurrency', () => {
       body: JSON.stringify({ reason: 'Duplicate', amount: 50 })
     });
     
-    const res = await POST(req, { params: { orderId: '123e4567-e89b-42d3-a456-426614174000' } });
+    const res = await POST(req, { params: Promise.resolve({ orderId: '123e4567-e89b-42d3-a456-426614174000' }) });
     const data = await res.json();
 
     // The route should return a 409 Conflict because the claim returned 0 rows
@@ -142,7 +143,7 @@ describe('Refund Concurrency', () => {
       body: JSON.stringify({ reason: 'Requesting refund', amount: 100 })
     });
     
-    const res = await POST(req, { params: { orderId: '123e4567-e89b-42d3-a456-426614174000' } });
+    const res = await POST(req, { params: Promise.resolve({ orderId: '123e4567-e89b-42d3-a456-426614174000' }) });
     const data = await res.json();
 
     // The route should return a 400 because the log wasn't found BEFORE the atomic claim
@@ -213,9 +214,10 @@ describe('Dashboard Revenue', () => {
     ] as any);
     
     vi.mocked(prisma.order.count).mockResolvedValue(0);
+    vi.mocked(prisma.systemAlert.count).mockResolvedValue(0);
 
     const req = new NextRequest('http://localhost/api/admin/dashboard');
-    const res = await DashboardGET(req);
+    const res = await DashboardGET();
     const result = await res.json();
     
     // Total should be 200 (PAID) + 400 (COMPLETED) = 600. PENDING (100) and CANCELLED (300) are excluded.

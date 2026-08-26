@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { CheckCircle2, Download, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function InvoicePage({ params }: { params: { orderId: string } }) {
+export default function InvoicePage(props: { params: Promise<{ orderId: string }> }) {
+  const params = use(props.params);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

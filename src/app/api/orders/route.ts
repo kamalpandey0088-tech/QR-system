@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!session) throw new AppError('Session required.', 401);
 
     
-    const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'unknown';
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
     const rateLimit = rateLimiter.check(ip, 'api');
     if (!rateLimit.allowed) {
       return NextResponse.json(

@@ -4,10 +4,8 @@ import { handleApiError, createCorrelationId, AppError } from '@/lib/errors';
 import { getSessionFromRequest } from '@/lib/auth/session';
 import { isValidUUID } from '@/lib/security/sanitize';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { orderId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ orderId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSessionFromRequest(request);
     if (!session) throw new AppError('Session required', 401);

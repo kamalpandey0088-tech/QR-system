@@ -5,10 +5,8 @@ import { updateThemeSchema } from '@/lib/validations/tenant';
 import { requireTenantAccess, requirePermission } from '@/lib/auth/rbac';
 import { isValidUUID } from '@/lib/security/sanitize';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { tenantId: string } }
-) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ tenantId: string }> }) {
+  const params = await props.params;
   try {
     const { tenantId } = params;
     if (!isValidUUID(tenantId)) throw new AppError('Invalid tenant ID', 400);
@@ -27,10 +25,8 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { tenantId: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ tenantId: string }> }) {
+  const params = await props.params;
   try {
     const { tenantId } = params;
     if (!isValidUUID(tenantId)) throw new AppError('Invalid tenant ID', 400);

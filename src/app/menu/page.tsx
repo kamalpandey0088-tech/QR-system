@@ -7,17 +7,18 @@ import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MenuPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
+export default async function MenuPage(
+  props: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const table = typeof searchParams.table === 'string' ? searchParams.table : '1';
   let tenantId = typeof searchParams.tenant === 'string' ? searchParams.tenant : null;
 
   // Domain-based routing
   if (!tenantId) {
-    const host = headers().get('host') || '';
+    const host = (await headers()).get('host') || '';
     // Look up by exact domain first
     let dbTenant = await prisma.tenant.findFirst({ where: { domain: host, isActive: true } });
     
@@ -49,7 +50,7 @@ export default async function MenuPage({
       }
     }),
     (async () => {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const token = cookieStore.get('customer_session')?.value;
       if (token) {
         const existing = await prisma.customerSession.findUnique({ where: { sessionToken: token } });

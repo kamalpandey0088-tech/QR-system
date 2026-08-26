@@ -7,10 +7,8 @@ import { getSessionFromRequest } from '@/lib/auth/session';
 import { isValidUUID } from '@/lib/security/sanitize';
 import { isValidTransition } from '@/types';
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { orderId: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ orderId: string }> }) {
+  const params = await props.params;
   try {
     const { orderId } = params;
     if (!isValidUUID(orderId)) throw new AppError('Invalid order ID', 400);
