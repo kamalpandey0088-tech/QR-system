@@ -57,7 +57,7 @@ export const ORDER_STATE_MACHINE: Record<string, readonly string[]> = {
   PREPARING: ['READY'] as const,
   READY: ['COMPLETED'] as const,
   COMPLETED: [] as const,
-  CANCELLED: [] as const,
+  CANCELLED: ['PAID'] as const,
   REFUNDED: [] as const,
 };
 

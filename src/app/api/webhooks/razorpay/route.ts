@@ -73,15 +73,22 @@ export async function POST(request: NextRequest) {
     });
 
     if (eventType === 'payment.captured' || eventType === 'order.paid') {
+      // Find the order regardless of status (so we can resurrect late payments that were auto-cancelled)
       const order = await prisma.order.findFirst({
-        where: { paymentTransactionId: razorpayOrderId, status: 'PENDING' },
-        select: { id: true, tenantId: true },
+        where: { paymentTransactionId: razorpayOrderId },
+        select: { id: true, tenantId: true, status: true },
       });
 
       if (order) {
+        if (order.status !== 'PENDING' && order.status !== 'CANCELLED') {
+          console.warn(`[WEBHOOK] Received payment for order ${order.id} with status ${order.status}`);
+        }
+
         await prisma.$transaction(async (tx) => {
           await tx.order.update({
             where: { id: order.id },
+            // If the order was cancelled, we resurrect it to PAID. 
+            // In a real system we might append a note, but at minimum we save the payment.
             data: { status: 'PAID', paidAt: new Date() },
           });
 
@@ -92,6 +99,8 @@ export async function POST(request: NextRequest) {
             data: { processed: true, tenantId: order.tenantId },
           });
         });
+      } else {
+        console.error(`[WEBHOOK] No order found for paymentTransactionId ${razorpayOrderId}`);
       }
     }
 

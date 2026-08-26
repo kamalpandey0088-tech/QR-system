@@ -13,12 +13,16 @@ export async function GET(request: Request) {
 
     const now = new Date();
     
-    // 1. Delete PENDING orders older than 1 hour (frees up database storage and table space)
-    const thirtyMinsAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const staleOrders = await prisma.order.deleteMany({
+    // 1. Soft-cancel PENDING orders older than 5 minutes (server-side expiry check)
+    // We NEVER hard-delete orders. Keep the row for auditing.
+    const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const staleOrders = await prisma.order.updateMany({
       where: {
         status: 'PENDING',
-        createdAt: { lt: thirtyMinsAgo }
+        createdAt: { lt: fiveMinsAgo }
+      },
+      data: {
+        status: 'CANCELLED'
       }
     });
 
@@ -30,20 +34,14 @@ export async function GET(request: Request) {
       }
     });
 
-    // 3. Delete old payment webhook logs (older than 30 days) to prevent log bloat
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const staleLogs = await prisma.paymentWebhookLog.deleteMany({
-      where: {
-        createdAt: { lt: thirtyDaysAgo }
-      }
-    });
+    // 3. We intentionally NEVER delete PaymentWebhookLogs. They are kept permanently for financial auditing.
+    // (Removed staleLogs deletion block)
 
     return NextResponse.json({
       success: true,
       message: 'Database cleanup completed successfully',
-      deletedStaleOrders: staleOrders.count,
+      softCancelledStaleOrders: staleOrders.count,
       deletedStaleSessions: staleSessions.count,
-      deletedStaleLogs: staleLogs.count,
     });
   } catch (error) {
     console.error('CRON Cleanup Error:', error);
