@@ -120,7 +120,7 @@ export const authOptions = {
   },
 
   // Security settings
-  secret: process.env.AUTH_SECRET,
+  secret: process.env.AUTH_SECRET || (process.env.VERCEL_ENV !== 'production' ? 'development-fallback-secret-key-12345' : undefined),
   trustHost: true,
   debug: false, // NEVER enable debug in production - it leaks sensitive info
 };
