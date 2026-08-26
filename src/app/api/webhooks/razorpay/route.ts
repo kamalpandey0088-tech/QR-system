@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
               data: { status: 'PAID', paidAt: new Date() },
             });
 
-            await prisma.paymentWebhookLog.update({
+            await tx.paymentWebhookLog.update({
               where: {
                 provider_transactionId_eventType: { provider: 'razorpay', transactionId, eventType },
               },
