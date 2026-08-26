@@ -45,6 +45,17 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('CRON Cleanup Error:', error);
+    try {
+      await prisma.systemAlert.create({
+        data: {
+          severity: 'ERROR',
+          message: `Cron cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+          context: { error: String(error) }
+        }
+      });
+    } catch (e) {
+      // Ignore inner error
+    }
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

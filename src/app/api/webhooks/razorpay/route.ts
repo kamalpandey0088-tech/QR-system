@@ -81,7 +81,14 @@ export async function POST(request: NextRequest) {
 
       if (order) {
         if (order.status !== 'PENDING' && order.status !== 'CANCELLED') {
-          console.warn(`[WEBHOOK-ALERT] Late payment capture for order ${order.id} which is already ${order.status}. Skipping status override.`);
+          await prisma.systemAlert.create({
+            data: {
+              tenantId: order.tenantId,
+              severity: 'CRITICAL',
+              message: `Late payment received for order ${order.id} which is already ${order.status}. Order status was NOT updated. Please review accounting.`,
+              context: { eventType, transactionId }
+            }
+          });
           // Mark webhook as processed to prevent retries, but DO NOT overwrite the order status
           await prisma.paymentWebhookLog.update({
             where: {
@@ -106,7 +113,13 @@ export async function POST(request: NextRequest) {
           });
         }
       } else {
-        console.error(`[WEBHOOK] No order found for paymentTransactionId ${razorpayOrderId}`);
+        await prisma.systemAlert.create({
+          data: {
+            severity: 'CRITICAL',
+            message: `Webhook payment received for an unknown order (Transaction ID: ${razorpayOrderId}). Payment dropped.`,
+            context: { eventType, transactionId, razorpayOrderId }
+          }
+        });
       }
     }
 

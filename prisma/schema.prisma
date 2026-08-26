@@ -69,6 +69,7 @@ model Tenant {
   orderItems         OrderItem[]
   paymentWebhookLogs PaymentWebhookLog[]
   refundLogs         RefundLog[]
+  systemAlerts       SystemAlert[]
 
   @@map("tenants")
 }
@@ -346,4 +347,21 @@ model RefundLog {
   @@index([tenantId])
   @@index([orderId])
   @@map("refund_logs")
+}
+
+// ── System Alerts (for logging critical unhandled webhook/cron errors) ──
+
+model SystemAlert {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String?  @map("tenant_id") @db.Uuid
+  severity  String   // e.g., 'WARNING', 'ERROR'
+  message   String
+  context   Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId, isRead])
+  @@map("system_alerts")
 }

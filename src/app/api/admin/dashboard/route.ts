@@ -72,6 +72,17 @@ export async function GET() {
       include: { items: true }
     });
 
+    // Unread System Alerts
+    const systemAlertCount = await prisma.systemAlert.count({
+      where: {
+        OR: [
+          { tenantId },
+          { tenantId: null }
+        ],
+        isRead: false
+      }
+    });
+
     // Last 7 days revenue (Sparkline Data)
     const last7DaysOrders = await prisma.order.findMany({
       where: { tenantId, createdAt: { gte: sevenDaysAgo } },
@@ -106,6 +117,7 @@ export async function GET() {
         topSellingItems,
         ordersByStatus,
         recentOrders,
+        systemAlertCount,
         last7DaysRevenue
       }
     });

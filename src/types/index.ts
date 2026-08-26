@@ -134,6 +134,7 @@ export interface DashboardStats {
     totalRevenue: number;
   }>;
   ordersByStatus: Record<string, number>;
+  systemAlertCount?: number;
 }
 
 // ── Cart Types ───────────────────────────────────────────────
