@@ -81,24 +81,30 @@ export async function POST(request: NextRequest) {
 
       if (order) {
         if (order.status !== 'PENDING' && order.status !== 'CANCELLED') {
-          console.warn(`[WEBHOOK] Received payment for order ${order.id} with status ${order.status}`);
-        }
-
-        await prisma.$transaction(async (tx) => {
-          await tx.order.update({
-            where: { id: order.id },
-            // If the order was cancelled, we resurrect it to PAID. 
-            // In a real system we might append a note, but at minimum we save the payment.
-            data: { status: 'PAID', paidAt: new Date() },
-          });
-
-          await tx.paymentWebhookLog.update({
+          console.warn(`[WEBHOOK-ALERT] Late payment capture for order ${order.id} which is already ${order.status}. Skipping status override.`);
+          // Mark webhook as processed to prevent retries, but DO NOT overwrite the order status
+          await prisma.paymentWebhookLog.update({
             where: {
               provider_transactionId_eventType: { provider: 'razorpay', transactionId, eventType },
             },
             data: { processed: true, tenantId: order.tenantId },
           });
-        });
+        } else {
+          // It is PENDING or CANCELLED, safe to mark as PAID
+          await prisma.$transaction(async (tx) => {
+            await tx.order.update({
+              where: { id: order.id },
+              data: { status: 'PAID', paidAt: new Date() },
+            });
+
+            await prisma.paymentWebhookLog.update({
+              where: {
+                provider_transactionId_eventType: { provider: 'razorpay', transactionId, eventType },
+              },
+              data: { processed: true, tenantId: order.tenantId },
+            });
+          });
+        }
       } else {
         console.error(`[WEBHOOK] No order found for paymentTransactionId ${razorpayOrderId}`);
       }
