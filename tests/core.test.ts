@@ -1,4 +1,9 @@
 import { createOrderSchema } from "../src/lib/validations/order";
+import { rateLimiter } from "../src/lib/security/rate-limiter";
+import { GET as DashboardGET } from "../src/app/api/admin/dashboard/route";
+import { POST as OrderPOST } from "../src/app/api/orders/route";
+import { getSessionFromRequest } from "../src/lib/auth/session";
+import { auth } from "../src/lib/auth/auth-options";
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -9,22 +14,45 @@ import { prisma } from '../src/lib/db/prisma';
 import { requirePermission, requireTenantAccess } from '@/lib/auth/rbac';
 
 // Mock the prisma client and auth
+
+
 vi.mock('../src/lib/db/prisma', () => ({
   prisma: {
-    cart: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn() },
+    cart: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     tenant: { findUnique: vi.fn() },
     menuItem: { findFirst: vi.fn() },
     modifier: { findMany: vi.fn() },
-    order: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
+    order: { findFirst: vi.fn(), findMany: vi.fn(), aggregate: vi.fn(), count: vi.fn(), groupBy: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
+    orderItem: { groupBy: vi.fn() },
     paymentWebhookLog: { findFirst: vi.fn() },
-    refundLog: { create: vi.fn() }
+    refundLog: { create: vi.fn() },
+    $transaction: vi.fn()
   }
 }));
+
+// We need the ACTUAL calculateCartTotal logic to run, not mock it, so the tax test passes
+vi.mock('../src/lib/db/server-pricing', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    calculateCartTotal: vi.fn().mockImplementation(actual.calculateCartTotal)
+  };
+});
 
 vi.mock('@/lib/auth/rbac', () => ({
   requirePermission: vi.fn(),
   requireTenantAccess: vi.fn()
 }));
+
+vi.mock('../src/lib/auth/session', () => ({
+  getSessionFromRequest: vi.fn(),
+}));
+
+vi.mock('../src/lib/auth/auth-options', () => ({
+  auth: vi.fn(),
+}));
+
+
 
 describe('State Machine Transitions', () => {
   it('Order status transitions follow the defined state machine', () => {
@@ -136,22 +164,74 @@ describe('Order Security & Revenue', () => {
   });
 
   it('Cash orders are created as PENDING, never PAID', async () => {
-    // Verified: In src/app/api/payments/create-order/route.ts, initialStatus = 'PENDING'
-    expect(true).toBe(true);
+    vi.mocked(getSessionFromRequest).mockResolvedValue({ id: 'session-1', tenantId: 'tenant-1', tableNumber: '5', expiresAt: new Date() });
+    
+    vi.mocked(prisma.cart.findUnique).mockResolvedValue({
+      id: 'cart-1', status: 'ACTIVE', items: [{ quantity: 1, menuItem: { id: 'm-1', name: 'Coffee', price: new Prisma.Decimal(10), isAvailable: true }, modifiers: [] }]
+    } as any);
+
+    vi.mocked(calculateCartTotal).mockResolvedValue({ subtotal: new Prisma.Decimal(10), tax: new Prisma.Decimal(1), total: new Prisma.Decimal(11) } as any);
+    
+    // Simulate Prisma transaction returning the order with PENDING status
+    let capturedOrderCreateData: any;
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+      // Mock the tx object passed to the callback
+      const mockTx = {
+        order: {
+          create: vi.fn().mockImplementation((args) => {
+            capturedOrderCreateData = args.data;
+            return { ...args.data, id: 'order-1', orderNumber: 1, createdAt: new Date() };
+          }),
+        },
+        cart: { update: vi.fn() }
+      };
+      return callback(mockTx as any);
+    });
+
+    const req = new NextRequest('http://localhost/api/orders', { method: 'POST', body: JSON.stringify({ paymentMethod: 'CASH' }) });
+    const res = await OrderPOST(req);
+    const data = await res.json();
+    
+    expect(res.status).toBe(201);
+    expect(data.data.status).toBe('PENDING'); // Assert response
+    expect(capturedOrderCreateData.status).toBe('PENDING'); // Assert database insertion logic
+    expect(capturedOrderCreateData.paidAt).toBe(null); // Explicitly unpaid
   });
 });
 
 describe('Dashboard Revenue', () => {
-  it('Dashboard revenue calculations exclude PENDING/unpaid orders', () => {
-    // Verified: In src/app/api/admin/dashboard/route.ts, revenue calculation uses 
-    // where: { status: { in: ['PAID', 'PREPARING', 'READY', 'COMPLETED'] }, paidAt: { not: null } }
-    expect(true).toBe(true);
+  it('Dashboard revenue calculations exclude PENDING/unpaid orders', async () => {
+    vi.mocked(requirePermission).mockResolvedValue({ tenantId: 'tenant-1' } as any);
+    
+    // The actual route uses JS array filtering:
+    // const isPaid = (o: any) => ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o.status) && o.paidAt !== null;
+    vi.mocked(prisma.order.findMany).mockResolvedValue([
+      { id: 'o-1', status: 'PENDING', total: new Prisma.Decimal(100), paidAt: null, createdAt: new Date(), items: [] },
+      { id: 'o-2', status: 'PAID', total: new Prisma.Decimal(200), paidAt: new Date(), createdAt: new Date(), items: [] },
+      { id: 'o-3', status: 'CANCELLED', total: new Prisma.Decimal(300), paidAt: null, createdAt: new Date(), items: [] },
+      { id: 'o-4', status: 'COMPLETED', total: new Prisma.Decimal(400), paidAt: new Date(), createdAt: new Date(), items: [] }
+    ] as any);
+    
+    vi.mocked(prisma.order.count).mockResolvedValue(0);
+
+    const req = new NextRequest('http://localhost/api/admin/dashboard');
+    const res = await DashboardGET(req);
+    const result = await res.json();
+    
+    // Total should be 200 (PAID) + 400 (COMPLETED) = 600. PENDING (100) and CANCELLED (300) are excluded.
+    expect(result.data.todayRevenue).toBe(600);
   });
 });
 
 describe('Rate Limiting', () => {
   it('Requests beyond the configured rate limit return HTTP 429', () => {
-    // Verified: Middleware invokes rateLimit() from src/lib/security/rate-limit.ts
-    expect(true).toBe(true);
+    const ip = '192.168.1.100';
+    // Exhaust the rate limit (100 requests per window for api)
+    for (let i = 0; i < 100; i++) {
+      rateLimiter.check(ip, 'api');
+    }
+    const finalCheck = rateLimiter.check(ip, 'api');
+    expect(finalCheck.allowed).toBe(false);
+    expect(finalCheck.retryAfter).toBeGreaterThan(0);
   });
 });
